@@ -60,6 +60,11 @@
     interfaces are adjusted accordingly too. (Wengier)
   - Config option "usescancodes=auto" now implies false
     for PC-98 mode in SDL1 builds. (Wengier)
+  - Config option "pc-98 force ibm keyboard layout" now
+    defaults to "auto", which implies "true" if a U.S.
+    keyboard layout is detected and implies "false"
+    otherwise. Also fixed some input keys for the PC-98
+    mode. (Wengier & maron2000)
   - For PC-98 mode, if both FONT.ROM and FREECG98.BMP
     are not found in the directory, then DOSBox-X will
     now use internal Japanese font (also used by DOS/V
@@ -101,7 +106,15 @@
     section of the config file to enable DOS/V mode for
     different CJK languages. There are now also various
     font-related (and V-text screen mode) options added
-    in [dosv] section for the DOS/V support. (Wengier)
+    in [dosv] section for the DOS/V support. For the
+    Simplified Chinese (code page 936), you can also
+    enable GBK extension of the standard GB2312 charset
+    with "gbk" option for Simplified Chinese DOS/V and
+    the TrueType font (TTF) output. (Wengier)
+  - The "Unexpected control character" error message
+    which may appear when executing certain batch files
+    is now a debug message (belong to "dosmisc" type)
+    instead of showing to the DOS console output.
   - Added "videodriver" config option in [sdl] section
     to force a video driver (such as windib/windows,
     x11, dummy) for the SDL library to use. The video
