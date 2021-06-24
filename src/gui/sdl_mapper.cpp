@@ -1262,7 +1262,6 @@ public:
 	return CreateKeyBind((SDLKey)GetKeyCode(event->key.keysym));
 #endif
     };
-#endif
     bool CheckEvent(SDL_Event * event) {
         if (event->type!=SDL_KEYDOWN && event->type!=SDL_KEYUP) return false;
 #if defined(C_SDL2)
