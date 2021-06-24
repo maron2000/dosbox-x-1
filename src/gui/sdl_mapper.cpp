@@ -875,8 +875,8 @@ typedef char assert_right_size [MAX_SCANCODES == (sizeof(sdlkey_map)/sizeof(sdlk
 #define MAX_SCANCODES 0xdf
 static SDLKey sdlkey_map[MAX_SCANCODES] = {
 	SDLK_UNKNOWN,//0x00
-	SDLK_ESCAPE,//0x01  
-	/*0x02-0x0b 1-9,0*/
+	SDLK_ESCAPE,//0x01
+    /*0x02-0x0b 1-9,0*/
 	SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_5, SDLK_6, SDLK_7, SDLK_8, SDLK_9, SDLK_0,
 	/* 0x0c: */
 	SDLK_MINUS, //0x0c
@@ -1261,6 +1261,7 @@ public:
 #else
 		return CreateKeyBind((SDLKey)GetKeyCode(event->key.keysym));
     };
+#endif
     bool CheckEvent(SDL_Event * event) {
         if (event->type!=SDL_KEYDOWN && event->type!=SDL_KEYUP) return false;
 #if defined(C_SDL2)
