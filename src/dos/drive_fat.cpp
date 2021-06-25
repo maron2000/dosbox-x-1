@@ -48,7 +48,8 @@ static uint32_t dnum[256];
 extern bool wpcolon, force_sfn;
 extern int lfn_filefind_handle;
 void dos_ver_menu(bool start);
-char *strrchr_dbcs(char *str, char ch);
+extern char * DBCS_upcase(char * str);
+extern bool gbk, isDBCSCP(), isKanji1(uint8_t chr), shiftjis_lead_byte(int c);
 bool systemmessagebox(char const * aTitle, char const * aMessage, char const * aDialogType, char const * aIconType, int aDefaultButton);
 
 bool filename_not_8x3(const char *n) {
@@ -57,7 +58,7 @@ bool filename_not_8x3(const char *n) {
 	i = 0;
 	while (*n != 0) {
 		if (*n == '.') break;
-		if (*n<=32||*n==127||*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') return true;
+		if ((*n&0xFF)<=32||*n==127||*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') return true;
 		i++;
 		n++;
 	}
@@ -71,7 +72,7 @@ bool filename_not_8x3(const char *n) {
 	i = 0;
 	while (*n != 0) {
 		if (*n == '.') return true; /* another '.' means LFN */
-		if (*n<=32||*n==127||*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') return true;
+		if ((*n&0xFF)<=32||*n==127||*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') return true;
 		i++;
 		n++;
 	}
@@ -84,9 +85,12 @@ bool filename_not_8x3(const char *n) {
  * If the name is strict 8.3 uppercase like "FILENAME.TXT" there is no point making an LFN because it is a waste of space */
 bool filename_not_strict_8x3(const char *n) {
 	if (filename_not_8x3(n)) return true;
-	for (unsigned int i=0; i<strlen(n); i++)
-		if (n[i]>='a' && n[i]<='z')
-			return true;
+	bool lead = false;
+	for (unsigned int i=0; i<strlen(n); i++) {
+		if (lead) lead = false;
+		else if ((IS_PC98_ARCH && shiftjis_lead_byte(*n&0xFF)) || (isDBCSCP() && isKanji1(*n&0xFF))) lead = true;
+		else if (n[i]>='a' && n[i]<='z') return true;
+	}
 	return false; /* it is strict 8.3 upper case */
 }
 
@@ -94,8 +98,7 @@ char sfn[DOS_NAMELENGTH_ASCII];
 /* Generate 8.3 names from LFNs, with tilde usage (from ~1 to ~9999). */
 char* fatDrive::Generate_SFN(const char *path, const char *name) {
 	if (!filename_not_8x3(name)) {
-		strcpy(sfn, name);
-		upcase(sfn);
+		strcpy(sfn, DBCS_upcase((char *)name));
 		return sfn;
 	}
 	char lfn[LFN_NAMELENGTH+1], fullname[DOS_PATHLENGTH+DOS_NAMELENGTH_ASCII], *n;
@@ -116,16 +119,27 @@ char* fatDrive::Generate_SFN(const char *path, const char *name) {
 			*sfn=0;
 			while (*n == '.'||*n == ' ') n++;
 			while (strlen(n)&&(*(n+strlen(n)-1)=='.'||*(n+strlen(n)-1)==' ')) *(n+strlen(n)-1)=0;
-			while (*n != 0 && *n != '.' && i<(k<10?6u:(k<100?5u:(k<1000?4:3u)))) {
+			bool lead = false;
+			unsigned int m = k<10?6u:(k<100?5u:(k<1000?4:3u));
+			while (*n != 0 && *n != '.' && i < m) {
 				if (*n == ' ') {
 					n++;
+					lead = false;
 					continue;
 				}
-				if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') {
+				if (!lead && (IS_PC98_ARCH && shiftjis_lead_byte(*n & 0xFF)) || (isDBCSCP() && isKanji1(*n & 0xFF))) {
+					if (i==m-1) break;
+					sfn[i++]=*(n++);
+					lead = true;
+				} else if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'&&(!lead||(dos.loaded_codepage==936||IS_PDOSV)&&!gbk)||*n=='?'||*n=='*') {
 					sfn[i++]='_';
 					n++;
-				} else
-					sfn[i++]=toupper(*(n++));
+					lead = false;
+				} else {
+					sfn[i++]=lead?*n:toupper(*n);
+					n++;
+					lead = false;
+				}
 			}
 			sfn[i++]='~';
 			t=i;
@@ -153,16 +167,26 @@ char* fatDrive::Generate_SFN(const char *path, const char *name) {
 				n=p+1;
 				while (*n == '.') n++;
 				int j=0;
+				bool lead = false;
 				while (*n != 0 && j++<3) {
 					if (*n == ' ') {
 						n++;
+						lead = false;
 						continue;
 					}
-					if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') {
+					if (!lead && (IS_PC98_ARCH && shiftjis_lead_byte(*n & 0xFF)) || (isDBCSCP() && isKanji1(*n & 0xFF))) {
+						if (j==3) break;
+						sfn[i++]=*(n++);
+						lead = true;
+					} else if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'&&(!lead||(dos.loaded_codepage==936||IS_PDOSV)&&!gbk)||*n=='?'||*n=='*') {
 						sfn[i++]='_';
 						n++;
-					} else
-						sfn[i++]=toupper(*(n++));
+						lead = false;
+					} else {
+						sfn[i++]=lead?*n:toupper(*n);
+						n++;
+						lead = false;
+					}
 				}
 			}
 			sfn[i++]=0;
@@ -699,14 +723,14 @@ bool fatDrive::getEntryName(const char *fullname, char *entname) {
 	strcpy(dirtoken,fullname);
 
 	//LOG_MSG("Testing for filename %s", fullname);
-	findDir = strtok(dirtoken,"\\");
+	findDir = strtok_dbcs(dirtoken,"\\");
 	if (findDir==NULL) {
 		return true;	// root always exists
 	}
 	findFile = findDir;
 	while(findDir != NULL) {
 		findFile = findDir;
-		findDir = strtok(NULL,"\\");
+		findDir = strtok_dbcs(NULL,"\\");
 	}
 	int j=0;
 	for (int i=0; i<(int)strlen(findFile); i++)
@@ -859,7 +883,7 @@ bool fatDrive::getFileDirEntry(char const * const filename, direntry * useEntry,
 	/* Skip if testing in root directory */
 	if ((len>0) && (filename[len-1]!='\\')) {
 		//LOG_MSG("Testing for filename %s", filename);
-		findDir = strtok(dirtoken,"\\");
+		findDir = strtok_dbcs(dirtoken,"\\");
 		findFile = findDir;
 		while(findDir != NULL) {
 			imgDTA->SetupSearch(0,DOS_ATTR_DIRECTORY,findDir);
@@ -875,7 +899,7 @@ bool fatDrive::getFileDirEntry(char const * const filename, direntry * useEntry,
 				if(!(find_attr & DOS_ATTR_DIRECTORY)) break;
 
 				char * findNext;
-				findNext = strtok(NULL,"\\");
+				findNext = strtok_dbcs(NULL,"\\");
 				if (findNext == NULL && dirOk) break; /* dirOk means that if the last element is a directory, then refer to the directory itself */
 				findDir = findNext;
 			}
@@ -918,12 +942,12 @@ bool fatDrive::getDirClustNum(const char *dir, uint32_t *clustNum, bool parDir) 
         }
 
 		//LOG_MSG("Testing for dir %s", dir);
-		char * findDir = strtok(dirtoken,"\\");
+		char * findDir = strtok_dbcs(dirtoken,"\\");
 		while(findDir != NULL) {
 			lfn_filefind_handle=uselfn?LFN_FILEFIND_IMG:LFN_FILEFIND_NONE;
 			imgDTA->SetupSearch(0,DOS_ATTR_DIRECTORY,findDir);
 			imgDTA->SetDirID(0);
-			findDir = strtok(NULL,"\\");
+			findDir = strtok_dbcs(NULL,"\\");
 			if(parDir && (findDir == NULL)) {lfn_filefind_handle=fbak;break;}
 
 			if(!FindNextInternal(currentClust, *imgDTA, &foundEntry)) {

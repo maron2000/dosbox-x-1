@@ -29,6 +29,8 @@
 #include "cross.h"
 #include "regs.h"
 
+extern bool gbk, isDBCSCP(), isKanji1(uint8_t chr), shiftjis_lead_byte(int c);
+
 struct VFILE_Block {
 	const char * name;
 	const char * lname;
@@ -49,13 +51,13 @@ static VFILE_Block * first_file, * lfn_search[256], * parent_dir = NULL;
 
 extern int lfn_filefind_handle;
 extern bool filename_not_8x3(const char *n), filename_not_strict_8x3(const char *n);
+extern char * DBCS_upcase(char * str);
 extern char sfn[DOS_NAMELENGTH_ASCII];
 std::string hidefiles="";
 /* Generate 8.3 names from LFNs, with tilde usage (from ~1 to ~9999). */
 char* Generate_SFN(const char *name) {
 	if (!filename_not_8x3(name)) {
-		strcpy(sfn, name);
-		upcase(sfn);
+		strcpy(sfn, DBCS_upcase((char *)name));
 		return sfn;
 	}
 	char lfn[LFN_NAMELENGTH+1], *n;
@@ -75,16 +77,27 @@ char* Generate_SFN(const char *name) {
 			*sfn=0;
 			while (*n == '.'||*n == ' ') n++;
 			while (strlen(n)&&(*(n+strlen(n)-1)=='.'||*(n+strlen(n)-1)==' ')) *(n+strlen(n)-1)=0;
-			while (*n != 0 && *n != '.' && i<(k<10?6u:(k<100?5u:(k<1000?4:3u)))) {
+			bool lead = false;
+			unsigned int m = k<10?6u:(k<100?5u:(k<1000?4:3u));
+			while (*n != 0 && *n != '.' && i < m) {
 				if (*n == ' ') {
 					n++;
+					lead = false;
 					continue;
 				}
-				if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') {
+				if (!lead && (IS_PC98_ARCH && shiftjis_lead_byte(*n & 0xFF)) || (isDBCSCP() && isKanji1(*n & 0xFF))) {
+					if (i==m-1) break;
+					sfn[i++]=*(n++);
+					lead = true;
+				} else if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'&&(!lead||(dos.loaded_codepage==936||IS_PDOSV)&&!gbk)||*n=='?'||*n=='*') {
 					sfn[i++]='_';
 					n++;
-				} else
-					sfn[i++]=toupper(*(n++));
+					lead = false;
+				} else {
+					sfn[i++]=lead?*n:toupper(*n);
+					n++;
+					lead = false;
+				}
 			}
 			sfn[i++]='~';
 			t=i;
@@ -112,16 +125,26 @@ char* Generate_SFN(const char *name) {
 				n=p+1;
 				while (*n == '.') n++;
 				int j=0;
+				bool lead = false;
 				while (*n != 0 && j++<3) {
 					if (*n == ' ') {
 						n++;
+						lead = false;
 						continue;
 					}
-					if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'||*n=='?'||*n=='*') {
+					if (!lead && (IS_PC98_ARCH && shiftjis_lead_byte(*n & 0xFF)) || (isDBCSCP() && isKanji1(*n & 0xFF))) {
+						if (j==3) break;
+						sfn[i++]=*(n++);
+						lead = true;
+					} else if (*n=='"'||*n=='+'||*n=='='||*n==','||*n==';'||*n==':'||*n=='<'||*n=='>'||*n=='['||*n==']'||*n=='|'&&(!lead||(dos.loaded_codepage==936||IS_PDOSV)&&!gbk)||*n=='?'||*n=='*') {
 						sfn[i++]='_';
 						n++;
-					} else
-						sfn[i++]=toupper(*(n++));
+						lead = false;
+					} else {
+						sfn[i++]=lead?*n:toupper(*n);
+						n++;
+						lead = false;
+					}
 				}
 			}
 			sfn[i++]=0;
