@@ -752,13 +752,9 @@ void DIB_InitOSKeymapPriv(void) {
 			VK_keymap[VK_OEM_4] = SDLK_LEFTBRACKET;
 			VK_keymap[VK_OEM_6] = SDLK_RIGHTBRACKET;
 			VK_keymap[VK_OEM_5] = SDLK_JP_YEN;
-            //VK_keymap[VK_OEM_ENLW] = SDLK_WORLD_12; // hankaku toggle-1
-            //VK_keymap[VK_OEM_AUTO] = SDLK_WORLD_12; // hankaku toggle-2
-            //VK_keymap[VK_OEM_ATTN] = SDLK_CAPSLOCK;
-            //VK_keymap[VK_OEM_COPY] = SDLK_WORLD_15; // Hiragana
-            VK_keymap[VK_CONVERT] = SDLK_WORLD_14;  // Henkan
-            VK_keymap[VK_NONCONVERT] = SDLK_WORLD_13; // Muhenkan
-            break;
+			VK_keymap[VK_CONVERT] = SDLK_WORLD_14;  // Henkan
+			VK_keymap[VK_NONCONVERT] = SDLK_WORLD_13; // Muhenkan
+			break;
 	}
 
 	Arrows_keymap[3] = 0x25;
