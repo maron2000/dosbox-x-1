@@ -170,7 +170,7 @@ static scancode_tbl scan_to_scanascii_pc98[0x80] = {
     { 0x0939, 0x0929,   none, 0x09f6, 0x09d6, 0x09ae }, /* 09 9) */
     { 0x0a30, 0x0a30,   none, 0x0af7, 0x0adc, 0x0aa6 }, /* 0a 0  */
     { 0x0b2d, 0x0b3d,   none, 0x0b8c, 0x0bce, 0x0bce }, /* 0b -= */
-    { 0x0c5e, 0x0c5e, 0x0c1e, 0x0c8b, 0x0ccd, 0x0ccd }, /* 0c ^~ */
+    { 0x0c5e, 0x0c60, 0x0c1e, 0x0c8b, 0x0ccd, 0x0ccd }, /* 0c ^~ */
     { 0x0d5c, 0x0d7c, 0x0d1c, 0x0df1, 0x0db0, 0x0db0 }, /* 0d \| */
     { 0x0e08, 0x0e08, 0x0e08, 0x0e08, 0x0e08, 0x0e08 }, /* 0e backspace */
     { 0x0f09, 0x0f09, 0x0f09, 0x0f09, 0x0f09, 0x0f09 }, /* 0f tab */
@@ -936,17 +936,17 @@ static Bitu IRQ1_Handler_PC98(void) {
             else if (sc_8251 == 0x61){
                 // COPY (INT5 shall be called)
             }
-            if (grph && scan_to_scanascii_pc98[sc_8251].alt) { /* Alt is being pressed */
-                add_key(scan_to_scanascii_pc98[sc_8251].alt);
+            if (grph) { /* Alt is being pressed */
+                if (scan_to_scanascii_pc98[sc_8251].alt) add_key(scan_to_scanascii_pc98[sc_8251].alt);
             }
-            else if (ctrl && scan_to_scanascii_pc98[sc_8251].control) { /* Ctrl is being pressed */
-                add_key(scan_to_scanascii_pc98[sc_8251].control);
+            else if (ctrl) { /* Ctrl is being pressed */
+                if (scan_to_scanascii_pc98[sc_8251].control) add_key(scan_to_scanascii_pc98[sc_8251].control);
             }
-            else if (kana && shift && scan_to_scanascii_pc98[sc_8251].kana_shift) { // Kana is active + Shift is being pressed
-                add_key(scan_to_scanascii_pc98[sc_8251].kana_shift);
+            else if (kana && shift) { // Kana is active + Shift is being pressed
+                if (scan_to_scanascii_pc98[sc_8251].kana_shift)add_key(scan_to_scanascii_pc98[sc_8251].kana_shift);
             }
-            else if (kana && scan_to_scanascii_pc98[sc_8251].kana) {
-                add_key(scan_to_scanascii_pc98[sc_8251].kana); // Kana is active
+            else if (kana) {
+                if (scan_to_scanascii_pc98[sc_8251].kana) add_key(scan_to_scanascii_pc98[sc_8251].kana); // Kana is active
             }
             else if ((sc_8251 >= 0x10 && sc_8251 <= 0x19) ||
                 (sc_8251 >= 0x1d && sc_8251 <= 0x25) || (sc_8251 >= 0x29 && sc_8251 <= 0x2f)){
@@ -960,130 +960,78 @@ static Bitu IRQ1_Handler_PC98(void) {
 
             }
             else {
-                switch (sc_8251) {
-                case 0x02:  //  2           2       "       ???     フ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '@');
-                        break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                if (!pc98_force_ibm_layout){
+                    if (shift){
+                        if (scan_to_scanascii_pc98[sc_8251].shift) add_key(scan_to_scanascii_pc98[sc_8251].shift);
                     }
                     else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                        if (scan_to_scanascii_pc98[sc_8251].normal){
+                            add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                        }
                     }
-                    break;
-                case 0x06:  //  6           6       &       ???     オ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '^');
+                }
+                else {
+                    switch (sc_8251) {
+                    case 0x02:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '@');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x07:  //  7           7       '       ???     ヤ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '&');
+                    case 0x06:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '^');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x08:  //  8           8       (       ???     ユ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '*');
+                    case 0x07:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '&');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x09:  //  9           9       )       ???     ヨ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '(');
+                    case 0x08:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '*');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x0A:  //  0           0       ---     ???     ワ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + ')');
+                    case 0x09:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '(');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x0B:  //  -           -       =       ???     ホ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + '_');
+                    case 0x0A:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + ')');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x0C:  //  ^           ^       `       ???     ヘ
-                    if (pc98_force_ibm_layout){
+                    case 0x0B:  // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + '_');
+                            break;
+                        }
+                        break;
+                    case 0x0C:  // pc98_force_ibm_layout
                         if (shift) add_key(scan_add + '+');
                         else add_key(scan_add + '=');
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x1A: // @             @       ~       --      ﾞ
-                    if (pc98_force_ibm_layout && !modflags){
-                        add_key(scan_add + '`');
+                    case 0x1A: // pc98_force_ibm_layout
+                        if (!modflags){
+                            add_key(scan_add + '`');
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x26: //   ;           ;       +       ---     レ
-                    if (pc98_force_ibm_layout && shift){
-                        add_key(scan_add + ':'); // Shift - semicolon = ':'
+                    case 0x26: // pc98_force_ibm_layout
+                        if (shift){
+                            add_key(scan_add + ':'); // Shift - semicolon = ':'
+                            break;
+                        }
                         break;
-                    }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                case 0x27: //   :           :       *       ---     ケ
-                    if (pc98_force_ibm_layout) { // quote key
+                    case 0x27: // pc98_force_ibm_layout
+                        // quote key
                         if (shift) {
                             add_key(scan_add + '\"');
                             break;
@@ -1092,24 +1040,10 @@ static Bitu IRQ1_Handler_PC98(void) {
                             add_key(scan_add + '\'');
                             break;
                         }
+                        break;
+                    default:
+                        break;
                     }
-                    else if (shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                    }
-                    break;
-                default:
-                    if (shift && scan_to_scanascii_pc98[sc_8251].shift){
-                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
-                    }
-                    else{
-                        if (scan_to_scanascii_pc98[sc_8251].normal){
-                            add_key(scan_to_scanascii_pc98[sc_8251].normal);
-                        }
-                    }
-                    break;
                 }
             }
         }
