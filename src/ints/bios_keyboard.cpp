@@ -169,9 +169,9 @@ static scancode_tbl scan_to_scanascii_pc98[0x80] = {
     { 0x0838, 0x0828,   none, 0x08f5, 0x08d5, 0x08ad }, /* 08 8( */
     { 0x0939, 0x0929,   none, 0x09f6, 0x09d6, 0x09ae }, /* 09 9) */
     { 0x0a30, 0x0a30,   none, 0x0af7, 0x0adc, 0x0aa6 }, /* 0a 0  */
-    { 0x0b2d, 0x0b2d,   none, 0x0b8c, 0x0bce, 0x0bce }, /* 0b -= */
+    { 0x0b2d, 0x0b3d,   none, 0x0b8c, 0x0bce, 0x0bce }, /* 0b -= */
     { 0x0c5e, 0x0c5e, 0x0c1e, 0x0c8b, 0x0ccd, 0x0ccd }, /* 0c ^~ */
-    { 0x0d5c, 0x0d5c, 0x0d1c, 0x0df1, 0x0db0, 0x0db0 }, /* 0d \| */
+    { 0x0d5c, 0x0d7c, 0x0d1c, 0x0df1, 0x0db0, 0x0db0 }, /* 0d \| */
     { 0x0e08, 0x0e08, 0x0e08, 0x0e08, 0x0e08, 0x0e08 }, /* 0e backspace */
     { 0x0f09, 0x0f09, 0x0f09, 0x0f09, 0x0f09, 0x0f09 }, /* 0f tab */
     //normal, shift,CTRL, GRPH, Kana, Kana+shift
@@ -212,7 +212,7 @@ static scancode_tbl scan_to_scanascii_pc98[0x80] = {
     { 0x302c, 0x303c,   none, 0x30f0, 0x30c8, 0x30a4 }, /* 30 ,< */
     { 0x312e, 0x313e,   none, 0x31f0, 0x31d9, 0x31a1 }, /* 31 .> */
     { 0x322f, 0x323f,   none, 0x32f0, 0x32d2, 0x32a5 }, /* 32 /? */
-    {   none, 0x335f, 0x331f,   none, 0x33d8, 0x33d8 }, /* 33  _ */
+    {   none, 0x335f, 0x331f,   none, 0x33db, 0x33db }, /* 33  _ */
     { 0x3420, 0x3420, 0x3420, 0x3420, 0x3420, 0x3420 }, /* 34 space */
     { 0x3500, 0xa500, 0xb500, 0x3500, 0x3500, 0xa500 }, /* 35 XFER */
     { 0x3600, 0x3600, 0x3600, 0x3600, 0x3600, 0x3600 }, /* 36 ROLL UP */
@@ -841,7 +841,11 @@ static Bitu IRQ1_Handler_PC98(void) {
          */
         uint8_t modflags = mem_readb(0x52A + 0xE);
 
-        bool ctrl = !!(modflags & 0x10);
+        bool shift = modflags & 0x01; //bit 0
+        bool caps = modflags & 0x02;  //bit 1
+        bool kana = modflags & 0x04;  //bit 2
+        bool grph = modflags & 0x08;  //bit 3
+        bool ctrl = !!(modflags & 0x10);  //bit 4
         bool caps_capitals = (modflags & 1) ^ ((modflags >> 1) & 1); /* CAPS XOR SHIFT */
 
         /* According to Neko Project II, the BIOS maintains a "pressed key" bitmap at 0x50:0x2A.
@@ -904,725 +908,211 @@ static Bitu IRQ1_Handler_PC98(void) {
         //
         //                  KEY         UNSHIFT SHIFT   CTRL    KANA
         //                  ----------------------------------------
-        switch (sc_8251) {
-            case 0x00: //   ESC         ESC     ???     ???     ???
-                if (pressed) {
-                    add_key(scan_add + 27);
-                }
-                break;
-            case 0x01: //   1           1       !       ???     ヌ
-                if (pressed) {
-                    if (modflags & 1) /* either shift */
-                        add_key(scan_add + '!');
-                    else
-                        add_key(scan_add + '1');
-                }
-                break;
-            case 0x02:  //  2           2       "       ???     フ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '\"');
-                        else
-                            add_key(scan_add + '@');
-                    }
-                    else {
-                        add_key(scan_add + '2');
-                    }
-                }
-                break;
-            case 0x03:  //  3           3       #       ???     ア
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '#');
-                    else
-                        add_key(scan_add + '3');
-                }
-                break;
-            case 0x04:  //  4           4       $       ???     ウ
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '$');
-                    else
-                        add_key(scan_add + '4');
-                }
-                break;
-            case 0x05:  //  5           5       %       ???     エ
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '%');
-                    else
-                        add_key(scan_add + '5');
-                }
-                break;
-            case 0x06:  //  6           6       &       ???     オ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '&');
-                        else
-                            add_key(scan_add + '^');
-                    }
-                    else {
-                        add_key(scan_add + '6');
-                    }
-                }
-                break;
-            case 0x07:  //  7           7       '       ???     ヤ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '\'');
-                        else
-                            add_key(scan_add + '&');
-                    }
-                    else {
-                        add_key(scan_add + '7');
-                    }
-                }
-                break;
-            case 0x08:  //  8           8       (       ???     ユ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '(');
-                        else
-                            add_key(scan_add + '*');
-                    }
-                    else {
-                        add_key(scan_add + '8');
-                    }
-                }
-                break;
-            case 0x09:  //  9           9       )       ???     ヨ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + ')');
-                        else
-                            add_key(scan_add + '(');
-                    }
-                    else {
-                        add_key(scan_add + '9');
-                    }
-                }
-                break;
-            case 0x0A:  //  0           0       ---     ???     ワ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            { /* nothing */ }
-                        else
-                            add_key(scan_add + ')');
-                    }
-                    else {
-                        add_key(scan_add + '0');
-                    }
-                }
-                break;
-            case 0x0B:  //  -           -       =       ???     ホ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '=');
-                        else
-                            add_key(scan_add + '_');
-                    }
-                    else {
-                        add_key(scan_add + '-');
-                    }
-                }
-                break;
-            case 0x0C:  //  ^           ^       `       ???     ヘ
-                if (pressed) {
-                    if(!pc98_force_ibm_layout) {
-                        if (modflags & 1) /* shift */
-                            add_key(scan_add + '`');
-                        else
-                            add_key(scan_add + '^');
-                    } else {
-                        if (modflags & 1) /* shift */
-                            add_key(scan_add + '+');
-                        else
-                            add_key(scan_add + '=');                    
-                    }
-                }
-                break;
-            case 0x0D:  //  ¥           ¥       |       ???     ???
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '|');
-                    else
-                        add_key(scan_add + '\\'); /* In Shift-JIS, backslash becomes the Yen symbol */
-                }
-                break;
-            case 0x0E: // backspace
-                if (pressed) {
-                    add_key(scan_add + 8);
-                }
-                break;
-            case 0x0F: // tab
-                if (pressed) {
-                    add_key(scan_add + 9);
-                }
-                break;
-            case 0x10: // q
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'q' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'Q');
-                    else
-                        add_key(scan_add + 'q');
-                }
-                break;
-            case 0x11: // w
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'w' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'W');
-                    else
-                        add_key(scan_add + 'w');
-                }
-                break;
-            case 0x12: // e
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'e' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'E');
-                    else
-                        add_key(scan_add + 'e');
-                }
-                break;
-            case 0x13: // r
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'r' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'R');
-                    else
-                        add_key(scan_add + 'r');
-                }
-                break;
-            case 0x14: // t
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 't' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'T');
-                    else
-                        add_key(scan_add + 't');
-                }
-                break;
-            case 0x15: // y
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'y' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'Y');
-                    else
-                        add_key(scan_add + 'y');
-                }
-                break;
-            case 0x16: // u
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'u' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'U');
-                    else
-                        add_key(scan_add + 'u');
-                }
-                break;
-            case 0x17: // i
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'i' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'I');
-                    else
-                        add_key(scan_add + 'i');
-                }
-                break;
-            case 0x18: // o
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'o' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'O');
-                    else
-                        add_key(scan_add + 'o');
-                }
-                break;
-            case 0x19: // p
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'p' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'P');
-                    else
-                        add_key(scan_add + 'p');
-                }
-                break;
-            case 0x1A: // @             @       ~       --      ﾞ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        add_key(scan_add + '~');
-                    }
-                    else {
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '@');
-                        else
-                            add_key(scan_add + '`');
-                    }
-                }
-                break;
-            case 0x1B: // [             [       {       --      ﾟ       ｢
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '{');
-                    else
-                        add_key(scan_add + '[');
-                }
-                break;
-            case 0x1C: // Enter
-                if (pressed) {
-                    add_key(scan_add + 13);
-                }
-                break;
-            case 0x1D: // A
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'a' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'A');
-                    else
-                        add_key(scan_add + 'a');
-                }
-                break;
-            case 0x1E: // S
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 's' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'S');
-                    else
-                        add_key(scan_add + 's');
-                }
-                break;
-            case 0x1F: // D
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'd' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'D');
-                    else
-                        add_key(scan_add + 'd');
-                }
-                break;
-            case 0x20: // F
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'f' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'F');
-                    else
-                        add_key(scan_add + 'f');
-                }
-                break;
-            case 0x21: // G
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'g' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'G');
-                    else
-                        add_key(scan_add + 'g');
-                }
-                break;
-            case 0x22: // H
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'h' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'H');
-                    else
-                        add_key(scan_add + 'h');
-                }
-                break;
-            case 0x23: // J
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'j' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'J');
-                    else
-                        add_key(scan_add + 'j');
-                }
-                break;
-            case 0x24: // K
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'k' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'K');
-                    else
-                        add_key(scan_add + 'k');
-                }
-                break;
-            case 0x25: // L
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'l' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'L');
-                    else
-                        add_key(scan_add + 'l');
-                }
-                break;
-            case 0x26: //   ;           ;       +       ---     レ
-                if (pressed) {
-                    if (modflags & 1) { /* shift */
-                        if(!pc98_force_ibm_layout)
-                            add_key(scan_add + '+');
-                        else
-                            add_key(scan_add + ':');
-                    }
-                    else {
-                        add_key(scan_add + ';');
-                    }
-                }
-                break;
-            case 0x27: //   :           :       *       ---     ケ
-                if (pressed) {
-                    if(!pc98_force_ibm_layout) {
-                        if (modflags & 1) /* shift */
-                            add_key(scan_add + '*');
-                        else
-                            add_key(scan_add + ':');
-                    } else {
-                        if (modflags & 1) /* shift */
-                            add_key(scan_add + '\"');
-                        else
-                            add_key(scan_add + '\'');
-                    }
-                }
-                break;
-            case 0x28: //   ]           ]       }       ---     ム      ｣
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '}');
-                    else
-                        add_key(scan_add + ']');
-                }
-                break;
-            case 0x29: // Z
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'z' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'Z');
-                    else
-                        add_key(scan_add + 'z');
-                }
-                break;
-            case 0x2A: // X
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'x' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'X');
-                    else
-                        add_key(scan_add + 'x');
-                }
-                break;
-            case 0x2B: // C
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'c' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'C');
-                    else
-                        add_key(scan_add + 'c');
-                }
-                break;
-            case 0x2C: // V
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'v' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'V');
-                    else
-                        add_key(scan_add + 'v');
-                }
-                break;
-            case 0x2D: // B
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'b' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'B');
-                    else
-                        add_key(scan_add + 'b');
-                }
-                break;
-            case 0x2E: // N
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'n' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'N');
-                    else
-                        add_key(scan_add + 'n');
-                }
-                break;
-            case 0x2F: // M
-                if (pressed) {
-                    if (ctrl)
-                        add_key(scan_add + 'm' + 1 - 'a');
-                    else if (caps_capitals) /* shift */
-                        add_key(scan_add + 'M');
-                    else
-                        add_key(scan_add + 'm');
-                }
-                break;
-            case 0x30: //   ,           ,       <       ---     ネ      ､
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '<');
-                    else
-                        add_key(scan_add + ',');
-                }
-                break;
-            case 0x31: //   .           .       >       ---     ル      ｡
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '>');
-                    else
-                        add_key(scan_add + '.');
-                }
-                break;
-            case 0x32: //   /           /       ?       ---     メ      ･
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '?');
-                    else
-                        add_key(scan_add + '/');
-                }
-                break;
-            case 0x33: //  _ / Ro
-                if (pressed) {
-                    if (modflags & 1) /* shift */
-                        add_key(scan_add + '_');
-                    else
-                        { /*nothing*/ }
-                }
-                break;
-            case 0x34: // <space>
-                if (pressed) {
-                    add_key(scan_add + ' ');
-                }
-                break;
-            case 0x35: // XFER
-                if (pressed) {//TODO: Shift state?
-                    if (ctrl)
-                        add_key(0xB500);
-                    else if (modflags & 1) /* shift */
-                        add_key(0xA500);
-                    else
-                        add_key(0x3500);
-                }
-                break;
-            case 0x3E: // HOME/CLR
-                if (pressed) {//TODO: Shift state?
-                    if (ctrl)
-                        break;
-                    else if (modflags & 1) /* shift */
-                        add_key(0xAE00);
-                    else
-                        add_key(0x3E00);
-                }
-                break;
-            case 0x40: // keypad minus
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '-');
-                }
-                break;
-            case 0x41: // keypad divide
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '/');
-                }
-                break;
-            case 0x42: // keypad 7
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '7');
-                }
-                break;
-            case 0x43: // keypad 8
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '8');
-                }
-                break;
-            case 0x44: // keypad 9
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '9');
-                }
-                break;
-            case 0x45: // keypad multiply
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '*');
-                }
-                break;
-            case 0x46: // keypad 4
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '4');
-                }
-                break;
-            case 0x47: // keypad 5
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '5');
-                }
-                break;
-            case 0x48: // keypad 6
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '6');
-                }
-                break;
-            case 0x49: // keypad +
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '+');
-                }
-                break;
-            case 0x4A: // keypad 1
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '1');
-                }
-                break;
-            case 0x4B: // keypad 2
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '2');
-                }
-                break;
-            case 0x4C: // keypad 3
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '3');
-                }
-                break;
-            case 0x4D: // keypad =
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '=');
-                }
-                break;
-            case 0x4E: // keypad 0
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '0');
-                }
-                break;
-            case 0x4F: // keypad ,
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + ',');
-                }
-                break;
-            case 0x50: // keypad .
-                if (pressed) {//TODO: Shift state?
-                    add_key(scan_add + '.');
-                }
-                break;
-            case 0x51: // NFER
-                if (pressed) {//TODO: Shift state?
-                    if (ctrl)
-                        add_key(0xB100);
-                    else if (modflags & 1) /* shift */
-                        add_key(0xA100);
-                    else
-                        add_key(0x5100);
-                }
-                break;
-            case 0x52: // VF1           vf･1    ???     ???     ???     ???
-            case 0x53: // VF2           vf･2    ???     ???     ???     ???
-            case 0x54: // VF3           vf･3    ???     ???     ???     ???
-            case 0x55: // VF4           vf･4    ???     ???     ???     ???
-            case 0x56: // VF5           vf･5    ???     ???     ???     ???
-                if (pressed) {
-                    if (modflags & 0x10) /* CTRL */
-                        add_key(scan_add + 0x8000); /* 0xD2-0xD6 */
-                    else if (modflags & 1) /* SHIFT */
-                        add_key(scan_add + 0x7000); /* 0xC2-0xC6 */
-                    else
-                        add_key(scan_add + 0x0000); /* 0x52-0x56 */
-                }
-                break;
-
-            case 0x60: // STOP
+        if (pressed && sc_8251 <= 0x6f) { // skip shift-keys (0x70-0x74)
+            if (sc_8251 == 0x60) { // STOP
                 // does not pass it on.
                 // According to Neko Project II source code, STOP invokes INT 6h
                 // which is PC-98's version of the break interrupt IBM maps to INT 1Bh.
                 // Obviously defined before Intel decided that INT 6h is the Invalid
                 // Opcode exception. Booting PC-98 MS-DOS and looking at the INT 6h
                 // interrupt handler in the debugger confirms this.
-                if (pressed) {
-                    /* push an IRET frame pointing at INT 06h. */
+                /* push an IRET frame pointing at INT 06h. */
 
-                    /* we can't just CALLBACK_RunRealInt() here because we're in the
-                     * middle of an ISR and we need to acknowledge the interrupt to
-                     * the PIC before we call INT 06h. Funny things happen otherwise,
-                     * including an unresponsive keyboard. */
+                /* we can't just CALLBACK_RunRealInt() here because we're in the
+                * middle of an ISR and we need to acknowledge the interrupt to
+                * the PIC before we call INT 06h. Funny things happen otherwise,
+                * including an unresponsive keyboard. */
 
-                    /* I noticed that Neko Project II has the code to emulate this,
-                     * as a direct call to run a CPU interrupt, but it's commented
-                     * out for probably the same issue. */
-                    const uint32_t cb = real_readd(0,0x06u * 4u);
+                /* I noticed that Neko Project II has the code to emulate this,
+                * as a direct call to run a CPU interrupt, but it's commented
+                * out for probably the same issue. */
+                const uint32_t cb = real_readd(0, 0x06u * 4u);
 
-                    CPU_PUSHF(0);
-                    CPU_Push16((uint16_t)(cb >> 16u));
-                    CPU_Push16((uint16_t)(cb & 0xFFFFu));
+                CPU_PUSHF(0);
+                CPU_Push16((uint16_t)(cb >> 16u));
+                CPU_Push16((uint16_t)(cb & 0xFFFFu));
+                break;
+            }
+            else if (sc_8251 == 0x61){
+                // COPY (INT5 shall be called)
+            }
+            if (grph && scan_to_scanascii_pc98[sc_8251].alt) { /* Alt is being pressed */
+                add_key(scan_to_scanascii_pc98[sc_8251].alt);
+            }
+            else if (ctrl && scan_to_scanascii_pc98[sc_8251].control) { /* Ctrl is being pressed */
+                add_key(scan_to_scanascii_pc98[sc_8251].control);
+            }
+            else if (kana && shift && scan_to_scanascii_pc98[sc_8251].kana_shift) { // Kana is active + Shift is being pressed
+                add_key(scan_to_scanascii_pc98[sc_8251].kana_shift);
+            }
+            else if (kana && scan_to_scanascii_pc98[sc_8251].kana) {
+                add_key(scan_to_scanascii_pc98[sc_8251].kana); // Kana is active
+            }
+            else if ((sc_8251 >= 0x10 && sc_8251 <= 0x19) ||
+                (sc_8251 >= 0x1d && sc_8251 <= 0x25) || (sc_8251 >= 0x29 && sc_8251 <= 0x2f)){
+                /* is alphabet*/
+                if ((shift & !caps) || (!shift & caps)) { /* Upper case letters */
+                    add_key(scan_to_scanascii_pc98[sc_8251].shift);
                 }
-                break;
-
-            case 0x62: // F1            f･1     ???     ???     ???     ???
-            case 0x63: // F2            f･2     ???     ???     ???     ???
-            case 0x64: // F3            f･3     ???     ???     ???     ???
-            case 0x65: // F4            f･4     ???     ???     ???     ???
-            case 0x66: // F5            f･5     ???     ???     ???     ???
-            case 0x67: // F6            f･6     ???     ???     ???     ???
-            case 0x68: // F7            f･7     ???     ???     ???     ???
-            case 0x69: // F8            f･8     ???     ???     ???     ???
-            case 0x6A: // F9            f･9     ???     ???     ???     ???
-            case 0x6B: // F10           f･10    ???     ???     ???     ???
-                if (pressed) {
-                    if (modflags & 0x10) /* CTRL */
-                        add_key(scan_add + 0x3000); /* 0x92-0x9B */
-                    else if (modflags & 1) /* SHIFT */
-                        add_key(scan_add + 0x2000); /* 0x82-0x8B */
-                    else
-                        add_key(scan_add + 0x0000); /* 0x62-0x6B */
+                else {
+                    add_key(scan_to_scanascii_pc98[sc_8251].normal);
                 }
-                break;
 
-            case 0x70: // left/right shift. do nothing
-                break;
-
-            case 0x71: // caps. do nothing
-                break;
-
-            case 0x72: // kana. do nothing
-                break;
-
-            case 0x73: // graph. do nothing
-                break;
-
-            case 0x74: // left/right ctrl. do nothing
-                break;
-
-            default:
-                if (pressed) {
-                    add_key(scan_add + 0x00); /* zero low byte */
+            }
+            else {
+                switch (sc_8251) {
+                case 0x02:  //  2           2       "       ???     フ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '@');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x06:  //  6           6       &       ???     オ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '^');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x07:  //  7           7       '       ???     ヤ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '&');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x08:  //  8           8       (       ???     ユ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '*');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x09:  //  9           9       )       ???     ヨ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '(');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x0A:  //  0           0       ---     ???     ワ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + ')');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x0B:  //  -           -       =       ???     ホ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + '_');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x0C:  //  ^           ^       `       ???     ヘ
+                    if (pc98_force_ibm_layout){
+                        if (shift) add_key(scan_add + '+');
+                        else add_key(scan_add + '=');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x1A: // @             @       ~       --      ﾞ
+                    if (pc98_force_ibm_layout && !modflags){
+                        add_key(scan_add + '`');
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x26: //   ;           ;       +       ---     レ
+                    if (pc98_force_ibm_layout && shift){
+                        add_key(scan_add + ':'); // Shift - semicolon = ':'
+                        break;
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                case 0x27: //   :           :       *       ---     ケ
+                    if (pc98_force_ibm_layout) { // quote key
+                        if (shift) {
+                            add_key(scan_add + '\"');
+                            break;
+                        }
+                        else {
+                            add_key(scan_add + '\'');
+                            break;
+                        }
+                    }
+                    else if (shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                    }
+                    break;
+                default:
+                    if (shift && scan_to_scanascii_pc98[sc_8251].shift){
+                        add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                    }
+                    else{
+                        if (scan_to_scanascii_pc98[sc_8251].normal){
+                            add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                        }
+                    }
+                    break;
                 }
-                break;
+            }
         }
-
         if (--patience == 0) break; /* in case of stuck 8251 */
         status = IO_ReadB(0x43); /* 8251 status */
     }
