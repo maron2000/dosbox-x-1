@@ -951,7 +951,7 @@ static Bitu IRQ1_Handler_PC98(void) {
             else if ((sc_8251 >= 0x10 && sc_8251 <= 0x19) ||
                 (sc_8251 >= 0x1d && sc_8251 <= 0x25) || (sc_8251 >= 0x29 && sc_8251 <= 0x2f)){
                 /* is alphabet*/
-                if ((shift & !caps) || (!shift & caps)) { /* Upper case letters */
+                if (shift ^ caps) { /* Upper case letters */
                     add_key(scan_to_scanascii_pc98[sc_8251].shift);
                 }
                 else {
@@ -973,46 +973,32 @@ static Bitu IRQ1_Handler_PC98(void) {
                 else {
                     switch (sc_8251) {
                     case 0x02:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '@');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '@');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x06:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '^');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '^');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x07:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '&');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '&');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x08:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '*');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '*');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x09:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '(');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '(');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x0A:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + ')');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + ')');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x0B:  // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + '_');
-                            break;
-                        }
+                        if (shift) add_key(scan_add + '_');
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x0C:  // pc98_force_ibm_layout
                         if (shift) add_key(scan_add + '+');
@@ -1025,10 +1011,8 @@ static Bitu IRQ1_Handler_PC98(void) {
                         }
                         break;
                     case 0x26: // pc98_force_ibm_layout
-                        if (shift){
-                            add_key(scan_add + ':'); // Shift - semicolon = ':'
-                            break;
-                        }
+                        if (shift) add_key(scan_add + ':'); // Shift - semicolon = ':'
+                        else add_key(scan_to_scanascii_pc98[sc_8251].normal);
                         break;
                     case 0x27: // pc98_force_ibm_layout
                         // quote key
@@ -1042,7 +1026,14 @@ static Bitu IRQ1_Handler_PC98(void) {
                         }
                         break;
                     default:
-                        break;
+                        if (shift){
+                            if (scan_to_scanascii_pc98[sc_8251].shift) add_key(scan_to_scanascii_pc98[sc_8251].shift);
+                        }
+                        else{
+                            if (scan_to_scanascii_pc98[sc_8251].normal){
+                                add_key(scan_to_scanascii_pc98[sc_8251].normal);
+                            }
+                        }
                     }
                 }
             }
