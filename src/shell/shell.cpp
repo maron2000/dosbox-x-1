@@ -885,7 +885,7 @@ void DOS_Shell::SyntaxError(void) {
 	WriteOut(MSG_Get("SHELL_SYNTAXERROR"));
 }
 
-bool filename_not_8x3(const char *n);
+bool filename_not_8x3(const char *n), isDBCSCP(), isKanji1(uint8_t chr), shiftjis_lead_byte(int c);
 class AUTOEXEC:public Module_base {
 private:
 	AutoexecObject autoexec[17];
@@ -898,6 +898,10 @@ public:
 
 		/* Check -securemode switch to disable mount/imgmount/boot after running autoexec.bat */
 		bool secure = control->opt_securemode;
+        force_conversion = true;
+        int cp=dos.loaded_codepage;
+        InitCodePage();
+        force_conversion = false;
 
         /* The user may have given .BAT files to run on the command line */
         if (!control->auto_bat_additional.empty()) {
@@ -909,11 +913,16 @@ public:
                     cmd += "@c:\n";
                 } else {
                     std::string batname;
-                    /* NTS: this code might have problems with DBCS filenames - yksoft1 */
                     //LOG_MSG("auto_bat_additional %s\n", control->auto_bat_additional[i].c_str());
 
                     std::replace(control->auto_bat_additional[i].begin(),control->auto_bat_additional[i].end(),'/','\\');
-                    size_t pos = control->auto_bat_additional[i].find_last_of('\\');
+                    size_t pos = std::string::npos;
+                    bool lead = false;
+                    for (unsigned int j=0; j<control->auto_bat_additional[i].size(); j++) {
+                        if (lead) lead = false;
+                        else if ((IS_PC98_ARCH && shiftjis_lead_byte(control->auto_bat_additional[i][j])) || (isDBCSCP() && isKanji1(control->auto_bat_additional[i][j]))) lead = true;
+                        else if (control->auto_bat_additional[i][j]=='\\') pos = j;
+                    }
                     if(pos == std::string::npos) {  //Only a filename, mount current directory
                         batname = control->auto_bat_additional[i];
                         cmd += "@mount c: . -q\n";
@@ -944,6 +953,7 @@ public:
 
             autoexec_auto_bat.Install(cmd);
         }
+        dos.loaded_codepage = cp;
 
 		/* add stuff from the configfile unless -noautexec or -securemode is specified. */
 		const char * extra = section->data.c_str();
@@ -1266,7 +1276,7 @@ void SHELL_Init() {
     MSG_Add("SHELL_STARTUP_TEXT1_PC98", "Type \033[32mHELP\033[37m for shell commands, and \033[32mINTRO\033[37m for a short introduction. \nYou could also complete various tasks through the \033[33mdrop-down menus\033[37m.");
     MSG_Add("SHELL_STARTUP_EXAMPLE_PC98", "\033[32mExample\033[37m: Try select \033[33mTrueType font\033[37m or \033[33mOpenGL perfect\033[37m output option.");
     MSG_Add("SHELL_STARTUP_TEXT2_PC98", (std::string("To launch the \033[33mConfiguration Tool\033[37m, use \033[31mhost+C\033[37m. Host key is \033[32m") + (mapper_keybind + "\033[37m.                       ").substr(0,13) + std::string("\nTo activate the \033[33mMapper Editor\033[37m for key assignments, use \033[31mhost+M\033[37m.    \nTo switch between windowed and full-screen mode, use \033[31mhost+F\033[37m.      \nTo adjust the emulated CPU speed, use \033[31mhost+Plus\033[37m and \033[31mhost+Minus\033[37m.   ")).c_str());
-    MSG_Add("SHELL_STARTUP_INFO_PC98","\033[36mDOSBox-X is now running in Japanese NEC PC-98 emulation mode.\033[37m     \n\033[31mPC-98 emulation is INCOMPLETE and CURRENTLY IN DEVELOPMENT.\033[37m       ");
+    MSG_Add("SHELL_STARTUP_INFO_PC98","\033[36mDOSBox-X is now running in \033[32mJapanese NEC PC-98\033[36m emulation mode.\033[37m     ");
     MSG_Add("SHELL_STARTUP_TEXT3_PC98", "\033[32mDOSBox-X project \033[33mhttps://dosbox-x.com/     \033[36mComplete DOS emulations\033[37m\n\033[32mDOSBox-X guide   \033[33mhttps://dosbox-x.com/wiki\033[37m \033[36mDOS, Windows 3.x and 9x\033[37m\n\033[32mDOSBox-X support \033[33mhttps://github.com/joncampbell123/dosbox-x/issues\033[37m");
     MSG_Add("SHELL_STARTUP_HEAD1", "\033[36mGetting started with DOSBox-X:                                              \033[37m");
     MSG_Add("SHELL_STARTUP_TEXT1", "Type \033[32mHELP\033[37m to see the list of shell commands, \033[32mINTRO\033[37m for a brief introduction.\nYou can also complete various tasks in DOSBox-X through the \033[33mdrop-down menus\033[37m.");

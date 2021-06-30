@@ -936,7 +936,7 @@ static Bitu IRQ1_Handler_PC98(void) {
             else if (sc_8251 == 0x61){
                 // COPY (INT5 shall be called)
             }
-            if (grph) { /* Alt is being pressed */
+            else if (grph) { /* Alt is being pressed */
                 if (scan_to_scanascii_pc98[sc_8251].alt) add_key(scan_to_scanascii_pc98[sc_8251].alt);
             }
             else if (ctrl) { /* Ctrl is being pressed */
@@ -1479,4 +1479,3 @@ void BIOS_SetupKeyboard(void) {
         //  iret
     }
 }
-
