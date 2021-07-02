@@ -1036,15 +1036,15 @@ void DX5_InitOSKeymap(_THIS)
 
     switch (LOWORD(hLayout)) {
     case 0x411: /* JP */
-        // DIK_keymap[DIK_KANJI] = SDLK_WORLD_12;  // Hankaku/Zenkaku (FIX ME: This key works as a toggle key) 
+        // DIK_keymap[DIK_KANJI] = SDLK_WORLD_12;  // Hankaku/Zenkaku (FIX ME: This key works as a toggle key)
         DIK_keymap[DIK_CONVERT] = SDLK_WORLD_14;//henkan
         DIK_keymap[DIK_NOCONVERT] = SDLK_WORLD_13; //muhenkan
         // DIK_keymap[DIK_KANA] = SDLK_WORLD_15;   // Hiragana/Katakana  (FIX ME: This key works as a toggle key)
         DIK_keymap[DIK_YEN] = SDLK_JP_YEN;      // \ |
-        DIK_keymap[DIK_AT] = SDLK_AT;           // @ `
+        //DIK_keymap[DIK_AT] = SDLK_AT;           // @ `
         DIK_keymap[DIK_COLON] = SDLK_COLON;     // : *
         DIK_keymap[DIK_CIRCUMFLEX] = SDLK_CARET; // ^ ~
-        DIK_keymap[DIK_BACKSLASH] = SDLK_JP_RO; // \ _
+        //DIK_keymap[DIK_BACKSLASH] = SDLK_JP_RO; // \ _
         break;
     }
 }
