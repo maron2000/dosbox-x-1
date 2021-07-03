@@ -1144,8 +1144,10 @@ bool DOS_Canonicalize(char const * const name,char * const big) {
 }
 
 #ifdef _MSC_VER
-# define MIN(a,b) ((a) < (b) ? (a) : (b))
-# define MAX(a,b) ((a) > (b) ? (a) : (b))
+//# define MIN(a,b) ((a) < (b) ? (a) : (b))
+//# define MAX(a,b) ((a) > (b) ? (a) : (b))
+# define MIN(a,b) (std::min)(a,b)
+# define MAX(a,b) (std::max)(a,b)
 #else
 # define MIN(a,b) std::min(a,b)
 # define MAX(a,b) std::max(a,b)

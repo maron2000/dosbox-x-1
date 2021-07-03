@@ -2787,8 +2787,10 @@ struct pc98_func_key_shortcut_def   pc98_editor_key_escapes[11];        /* Edito
 
 // FIXME: This is STUPID. Cleanup is needed in order to properly use std::min without causing grief.
 #ifdef _MSC_VER
-# define MIN(a,b) ((a) < (b) ? (a) : (b))
-# define MAX(a,b) ((a) > (b) ? (a) : (b))
+//# define MIN(a,b) ((a) < (b) ? (a) : (b))
+//# define MAX(a,b) ((a) > (b) ? (a) : (b))
+# define MIN(a,b) (std::min)((a) , (b))
+# define MAX(a,b) (std::max)((a) , (b))
 #else
 # define MIN(a,b) std::min(a,b)
 # define MAX(a,b) std::max(a,b)
