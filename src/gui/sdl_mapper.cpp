@@ -3142,21 +3142,13 @@ public:
             key=SDLK_EQUALS;
             break;
         case MK_scrolllock:
-#if defined(C_SDL2)
-            key=SDLK_SCROLLLOCK;
-#else
             key=SDLK_SCROLLOCK;
-#endif
             break;
         case MK_pause:
             key=SDLK_PAUSE;
             break;
         case MK_printscreen:
-#if defined(C_SDL2)
-            key=SDLK_PRINTSCREEN;
-#else
             key=SDLK_PRINT;
-#endif
             break;
         case MK_home:
             key=SDLK_HOME; 
@@ -3986,9 +3978,26 @@ static struct {
     /* Is that the extra backslash key ("less than" key) */
     /* on some keyboards with the 102-keys layout??      */
     {"lessthan",SDL_SCANCODE_NONUSBACKSLASH},
+
+#if 0
+#ifdef SDL_DOSBOX_X_SPECIAL
+    /* hack for Japanese keyboards with \ and _ */
+    {"jp_bckslash",SDLK_JP_RO}, // Same difference
+    {"jp_ro",SDLK_JP_RO}, // DOSBox proprietary
+    /* hack for Japanese keyboards with Yen and | */
+    {"jp_yen",SDLK_JP_YEN },
+#endif
+    /* more */
+    {"jp_hankaku", SDLK_WORLD_12 },
+    {"jp_muhenkan", SDLK_WORLD_13 },
+    {"jp_henkan", SDLK_WORLD_14 },
+    {"jp_hiragana", SDLK_WORLD_15 },
+    {"colon", SDLK_COLON },
+    {"caret", SDLK_CARET },
+    {"atsign", SDLK_AT },
+#endif
     {0,0}
 };
-
 #else
 
 static struct {
@@ -4019,30 +4028,18 @@ static struct {
     {"lctrl",SDLK_LCTRL},   {"rctrl",SDLK_RCTRL},       {"comma",SDLK_COMMA},
     {"period",SDLK_PERIOD}, {"slash",SDLK_SLASH},
 
-#if defined(C_SDL2)
-    {"printscreen",SDLK_PRINTSCREEN},
-    {"scrolllock",SDLK_SCROLLLOCK},
-#else
     {"printscreen",SDLK_PRINT},
     {"scrolllock",SDLK_SCROLLOCK},
-#endif
 
     {"pause",SDLK_PAUSE},       {"pagedown",SDLK_PAGEDOWN},
     {"pageup",SDLK_PAGEUP}, {"insert",SDLK_INSERT},     {"home",SDLK_HOME},
     {"delete",SDLK_DELETE}, {"end",SDLK_END},           {"up",SDLK_UP},
     {"left",SDLK_LEFT},     {"down",SDLK_DOWN},         {"right",SDLK_RIGHT},
 
-#if defined(C_SDL2)
-    {"kp_0",SDLK_KP_0}, {"kp_1",SDLK_KP_1}, {"kp_2",SDLK_KP_2}, {"kp_3",SDLK_KP_3},
-    {"kp_4",SDLK_KP_4}, {"kp_5",SDLK_KP_5}, {"kp_6",SDLK_KP_6}, {"kp_7",SDLK_KP_7},
-    {"kp_8",SDLK_KP_8}, {"kp_9",SDLK_KP_9},
-    {"numlock",SDLK_NUMLOCKCLEAR},
-#else
     {"kp_0",SDLK_KP0},  {"kp_1",SDLK_KP1},  {"kp_2",SDLK_KP2},  {"kp_3",SDLK_KP3},
     {"kp_4",SDLK_KP4},  {"kp_5",SDLK_KP5},  {"kp_6",SDLK_KP6},  {"kp_7",SDLK_KP7},
     {"kp_8",SDLK_KP8},  {"kp_9",SDLK_KP9},
     {"numlock",SDLK_NUMLOCK},
-#endif
 
     {"kp_divide",SDLK_KP_DIVIDE},   {"kp_multiply",SDLK_KP_MULTIPLY},
     {"kp_minus",SDLK_KP_MINUS},     {"kp_plus",SDLK_KP_PLUS},
