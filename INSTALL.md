@@ -7,6 +7,8 @@ The current version of DOSBox-X at this time is DOSBox-X 0.83.15, which was rele
 
 See also: [DOSBox-X 0.83.15 Release Notes](https://dosbox-x.com/release-0.83.15.html)
 
+For most packages there are both SDL1 and SDL2 builds of DOSBox-X, and most features are the same for both builds. While SDL1 builds may be the default one to use, you may want to try SDL2 builds if you want certain features specific to SDL2 builds (such as the raw mouse input option) or you encounter specific issue(s) with SDL1 builds (such as incorrect keys in some international keyboard layouts).
+
 Once you get DOSBox-X installed and running, you probably want to look at the DOSBox-X user guide in the [DOSBox-X Wiki](https://dosbox-x.com/wiki) for usage information.
 
 ## Packages for Supported Platforms
@@ -95,10 +97,10 @@ Moreover, you can find DOSBox-X on SnapCraft (https://snapcraft.io/dosbox-x), wh
 If you use macOS as your operating system, we also release portable packages for the macOS (64-bit) platform. For the current DOSBox-X version 0.83.15, the official macOS packages are available as zip packages:
 
 For 64-bit Intel-based macOS:
-* [dosbox-x-macosx-x86_64-20210701081053.zip](https://github.com/joncampbell123/dosbox-x/releases/download/dosbox-x-v0.83.15/dosbox-x-macosx-x86_64-20210701081053.zip)
+* [dosbox-x-macosx-x86_64-20210703020047.zip](https://github.com/joncampbell123/dosbox-x/releases/download/dosbox-x-v0.83.15/dosbox-x-macosx-x86_64-20210703020047.zip)
 
 For 64-bit ARM-based macOS:
-* [dosbox-x-macosx-arm64-20210701081059.zip](https://github.com/joncampbell123/dosbox-x/releases/download/dosbox-x-v0.83.15/dosbox-x-macosx-arm64-20210701081059.zip)
+* [dosbox-x-macosx-arm64-20210703020142.zip](https://github.com/joncampbell123/dosbox-x/releases/download/dosbox-x-v0.83.15/dosbox-x-macosx-arm64-20210703020142.zip)
 
 The macOS package requires 64-bit Intel or ARM-based macOS operating system. It should run natively on the recent versions of macOS such as macOS Catalina (10.15) and Big Sur (11.0). Both SDL1 and SDL2 binaries (in .app format) are provided in the macOS package, in the directories named ```dosbox-x``` and ```dosbox-x-sdl2``` respectively inside the zip file. While the SDL1 version is the default version, the SDL2 version may be preferred over the SDL1 version for certain features (particularly related to input handling) such as touchscreen input support. You can select either SDL1 or SDL2 version according to your preference, or just run the SDL1 version if you are not sure.
 
@@ -106,20 +108,15 @@ There are two ways to run DOSBox-X in macOS, either from the Finder or from the 
 
 * From the Finder, go to the directory where the macOS zip package is downloaded, you will see a folder name which is the same as the file name of the downloaded zip package. Inside this folder you will see ```dosbox-x``` (SDL1) and ```dosbox-x-sdl2``` (SDL2). Go to either one and click the program "dosbox-x" to start DOSBox-X. If you see a dialog asking you to select a folder, please select one which will then become your DOSBox-X working directory. You can choose to save this folder after you select one so that the folder selection dialog will no show up again next time, or let DOSBox-X show the folder selection dialog every time you run it from the Finder.
 
-* From the Terminal, go to the directory where the macOS zip package is downloaded, you will see a folder name which is the same as the file name of the downloaded zip package. Starting from this folder, use ```cd``` command to go to the directory where the DOSBox-X executable is located. For SDL1 build, type ```cd dosbox-x/dosbox-x.app/Contents/MacOS```, and for SDL2 build, type ```cd dosbox-x-sdl2/dosbox-x.app/Contents/MacOS```. Run DOSBox-X with ```./DosBox``` and you will see the DOSBox-X window. 
+* From the Terminal, go to the directory where the macOS zip package is downloaded, you will see a folder name which is the same as the file name of the downloaded zip package. Starting from this folder, use ```cd``` command to go to the directory where the DOSBox-X executable is located. For SDL1 build, type ```cd dosbox-x/dosbox-x.app/Contents/MacOS```, and for SDL2 build, type ```cd dosbox-x-sdl2/dosbox-x.app/Contents/MacOS```. Run DOSBox-X with ```./DosBox``` and you will see the DOSBox-X window.
 
 If you see the message ```"dosbox-x" is damaged and can't be opened``` when trying to run DOSBox-X, you should be able to solve the problem by running the following command once in the Terminal and you are in the directory in which the macOS zip package is extracted (where you can find two folders including ```dosbox-x``` and ```dosbox-x-sdl2```):
 
 ``xattr -cr dosbox-x/dosbox-x.app dosbox-x-sdl2/dosbox-x.app``
 
-As of DOSBox-X version 0.83.15, macOS packages support the Slirp and FluidSynth features by default, but you need to make sure both libraries are already installed in your macOS system in order to run this build. You can install them via [brew](https://brew.sh/) with the following commands (you only need to do this once before running the macOS build):
+As of DOSBox-X version 0.83.15, the regular macOS builds listed above will run on macOS Catalina (10.15) or later; they include features such as Slirp, FluidSynth and FFmpeg by default and bundle dylib libraries needed for such features.
 
-```
-brew fluid-synth
-brew libslirp
-```
-
-If you have an older macOS version such as macOS High Sierra (10.13) and Mojave (10.14), or you use a newer macOS version but do not need any additional features provided by external libraries such as FluidSynth or libslirp, you can use the alternative macOS builds below instead, which include both SDL1 and SDL2 versions of the DOSBox-X (named ``dosbox-x-sdl1`` and ``dosbox-x-sdl2`` respectively in the package). These are intended to be builds for "low-end" systems with no need for external libraries to run them in your macOS:
+If you have an older macOS version such as macOS High Sierra (10.13) and Mojave (10.14), or you use a newer macOS version but do not need any additional features provided by external libraries such as libslirp or libfluidsynth, you can use the alternative macOS builds below instead, which include both SDL1 and SDL2 versions of the DOSBox-X (named ``dosbox-x-sdl1`` and ``dosbox-x-sdl2`` respectively in the package). These are intended to be builds for "low-end" systems with no need for external libraries to run them in your macOS:
 
 * [dosbox-x-macosx-0.83.15-high-sierra.zip](https://github.com/joncampbell123/dosbox-x/releases/download/dosbox-x-v0.83.15/dosbox-x-macosx-0.83.15-high-sierra.zip)
 
