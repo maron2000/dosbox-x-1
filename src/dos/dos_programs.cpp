@@ -210,6 +210,7 @@ static const char* UnmountHelper(char umount) {
 
     msgget=MSG_Get("PROGRAM_MOUNT_UMOUNT_SUCCESS");
     if (Drives[i_drive]) {
+	const bool partitionMount = Drives[i_drive]->partitionMount;
         const fatDrive* drive = dynamic_cast<fatDrive*>(Drives[i_drive]);
         imageDisk* image = drive ? drive->loadedDisk : NULL;
         const isoDrive* cdrom = dynamic_cast<isoDrive*>(Drives[i_drive]);
@@ -217,7 +218,7 @@ static const char* UnmountHelper(char umount) {
             case 1: return MSG_Get("PROGRAM_MOUNT_UMOUNT_NO_VIRTUAL");
             case 2: return MSG_Get("MSCDEX_ERROR_MULTIPLE_CDROMS");
         }
-        if (image) DetachFromBios(image);
+        if (image && !partitionMount) DetachFromBios(image);
         if (cdrom) IDE_CDROM_Detach(i_drive);
         Drives[i_drive] = 0;
         DOS_EnableDriveMenu(i_drive+'A');
@@ -238,7 +239,7 @@ static const char* UnmountHelper(char umount) {
     }
 
     if (i_drive < MAX_DISK_IMAGES && imageDiskList[i_drive]) {
-        delete imageDiskList[i_drive];
+        imageDiskList[i_drive]->Release();
         imageDiskList[i_drive] = NULL;
     }
     if (swapInDisksSpecificDrive == i_drive) {
@@ -4539,6 +4540,8 @@ public:
         std::string el_torito;
         std::string ideattach="auto";
         std::string type="hdd";
+	std::string bdisk;
+	int bdisk_number=-1;
 
         //this code simply sets default type to "floppy" if mounting at A: or B: --- nothing else
         // get first parameter - which is probably the drive letter to mount at (A-Z or A:-Z:) - and check it if is A or B or A: or B:
@@ -4585,6 +4588,19 @@ public:
             //  find the el_torito_floppy_base and el_torito_floppy_type values
             if (!PrepElTorito(type, el_torito_cd_drive, el_torito_floppy_base, el_torito_floppy_type)) return;
         }
+
+	//the user can use -bd to mount partitions from an INT 13h BIOS disk mounted image,
+	//meaning a disk image attached to INT 13h using IMGMOUNT <number> -fs none. This way,
+	//it is possible to mount multiple partitions from one HDD image.
+	cmd->FindString("-bd",bdisk,true);
+	if (bdisk != "") {
+		bdisk_number = atoi(bdisk.c_str());
+		if (bdisk_number < 0 || bdisk_number >= MAX_DISK_IMAGES) return;
+		if (imageDiskList[bdisk_number] == NULL) {
+			WriteOut("BIOS disk index does not have an image assigned");
+			return;
+		}
+	}
 
         //default fstype is fat
         std::string fstype="fat";
@@ -4674,7 +4690,7 @@ public:
         }
 
         // find all file parameters, assuming that all option parameters have been removed
-        bool removed=ParseFiles(temp_line, paths, el_torito != "" || type == "ram");
+        bool removed=ParseFiles(temp_line, paths, el_torito != "" || type == "ram" || bdisk != "");
 
         // some generic checks
         if (el_torito != "") {
@@ -4683,6 +4699,8 @@ public:
                 return;
             }
         }
+	else if (bdisk != "") {
+	}
         else if (type == "ram") {
             if (paths.size() != 0) {
                 WriteOut("Do not specify files when mounting RAM drives\n");
@@ -4713,7 +4731,10 @@ public:
         //====== call the proper subroutine ======
         if(fstype=="fat") {
             //mount floppy or hard drive
-            if (el_torito != "") {
+	    if (bdisk != "") {
+		if (!MountPartitionFat(drive, bdisk_number)) return;
+	    }
+	    else if (el_torito != "") {
                 if (!MountElToritoFat(drive, sizes, el_torito_cd_drive, el_torito_floppy_base, el_torito_floppy_type)) return;
             }
             else if (type == "ram") {
@@ -4725,6 +4746,10 @@ public:
             }
             if (removed && !exist && i_drive < DOS_DRIVES && i_drive >= 0 && Drives[i_drive]) DOS_SetDefaultDrive(i_drive);
         } else if (fstype=="iso") {
+	    if (bdisk != "") {
+		// TODO
+                return;
+	    }
             if (el_torito != "") {
                 WriteOut("El Torito bootable CD: -fs iso mounting not supported\n"); /* <- NTS: Will never implement, either */
                 return;
@@ -5002,7 +5027,8 @@ private:
                     FDC_UnassignINT13Disk(i_drive);
 
                 //get reference to image and cdrom before they are possibly destroyed
-                const fatDrive* drive = dynamic_cast<fatDrive*>(Drives[i_drive]);
+		const bool partitionMount = Drives[i_drive]->partitionMount;
+		const fatDrive* drive = dynamic_cast<fatDrive*>(Drives[i_drive]);
                 imageDisk* image = drive ? drive->loadedDisk : NULL;
                 const isoDrive* cdrom = dynamic_cast<isoDrive*>(Drives[i_drive]);
 
@@ -5010,7 +5036,7 @@ private:
                 case 0: //success
                 {
                     //detatch hard drive or floppy drive from bios and ide controller
-                    if (image) DetachFromBios(image);
+                    if (image && !partitionMount) DetachFromBios(image);
                     /* If the drive letter is also a CD-ROM drive attached to IDE, then let the IDE code know */
                     if (cdrom) IDE_CDROM_Detach(i_drive);
                     Drives[i_drive] = NULL;
@@ -5244,6 +5270,49 @@ private:
             WriteOut("El Torito bootable floppy not found\n");
             return false;
         }
+
+        return true;
+    }
+
+    bool MountPartitionFat(const char drive, const int src_bios_disk) {
+        unsigned char driveIndex = drive - 'A';
+
+	/* NTS: IBM PC systems: Hard disk partitions must start at C: or higher.
+	 *      PC-98 systems: Any drive letter is valid, A: can be a hard drive. */
+	if ((!IS_PC98_ARCH && driveIndex < 2) || driveIndex >= 26) {
+		WriteOut("Invalid drive letter");
+		return false;
+	}
+
+	if (Drives[driveIndex]) {
+		WriteOut(MSG_Get("PROGRAM_IMGMOUNT_ALREADY_MOUNTED"));
+		return false;
+	}
+
+	if (src_bios_disk < 2/*no, don't allow partitions on floppies!*/ || src_bios_disk >= MAX_DISK_IMAGES || imageDiskList[src_bios_disk] == NULL) {
+		WriteOut("BIOS disk index does not have an image assigned");
+		return false;
+	}
+
+	/* FIXME: IMGMOUNT and MOUNT -u are so hard-coded around C: and BIOS device indexes that some confusion may happen
+	 *        if a partition is C: mounted from, say, BIOS device 0x81 and the wrong thing may get unmounted and detached.
+	 *        So for sanity reasons, do not allow mounting to a drive letter if a BIOS disk image WOULD normally be
+	 *        associated with it. This is a mess inherited from back when this code forked from DOSBox SVN, because
+	 *        DOSBox SVN makes these hardcoded assumptions. */
+	if (driveIndex < MAX_DISK_IMAGES && imageDiskList[driveIndex] != NULL) {
+		WriteOut("Partitions cannot be mounted in conflict with the standard INT 13h hard disk\nallotment. Choose a different drive letter to mount to.");
+		return false;
+	}
+
+        DOS_Drive* newDrive = new fatDrive(imageDiskList[src_bios_disk], options);
+        if (!(dynamic_cast<fatDrive*>(newDrive))->created_successfully) {
+            WriteOut(MSG_Get("PROGRAM_IMGMOUNT_CANT_CREATE"));
+            return false;
+        }
+
+	newDrive->partitionMount = true;
+        AddToDriveManager(drive, newDrive, 0xF0);
+        DOS_EnableDriveMenu(drive);
 
         return true;
     }
