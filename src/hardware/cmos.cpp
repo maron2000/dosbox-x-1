@@ -82,35 +82,42 @@ static struct {
 
 static void cmos_timerevent(Bitu val) {
     (void)val;//UNUSED
-    if (cmos.timer.acknowledged) {
-        cmos.timer.acknowledged=false;
-        PIC_ActivateIRQ(8);
+    //if(cmos.timer.acknowledged) {
+        cmos.timer.acknowledged = false;
+        if(cmos.timer.enabled) PIC_ActivateIRQ(8); //Fire IRQ only when timer is enabled
+        //PIC_ActivateIRQ(8);
+        else LOG_MSG("CMOS: cmos.regs[0x0b] & 0x40u = %x", cmos.regs[0x0b] & 0x40u); // Debug output
+    //}
+
+    double index = PIC_FullIndex();
+    double remd = fmod(index, (double)cmos.timer.delay);
+    //LOG_MSG("enabled=%d, regs=%x, index=%f, delay=%f, remd=%d", cmos.timer.enabled, cmos.regs[0x0b], index, cmos.timer.delay, remd);
+    /* PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); */ //Should be more like a real pc. Check 
+    PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)); //FIX ME: removed remd  
+    if(index >= (cmos.last.timer + cmos.timer.delay)) {
+        //LOG_MSG("CMOS_timerevent: cmos.timer.enabled");
+        cmos.last.timer = index;
+        cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
     }
-    if (cmos.timer.enabled) {
-        double index = PIC_FullIndex();
-        double remd = fmod(index, (double)cmos.timer.delay);
-        PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd));
-        if(index >= (cmos.last.timer + cmos.timer.delay)) {
-            cmos.last.timer = index;
-            cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
-        }
-        if(index >= (cmos.last.ended + 1000)) {
-            cmos.last.ended = index;
-            cmos.regs[0xc] |= 0x10;    // Update-Ended Interrupt Flag (UF)
-        }
+    else if(index >= (cmos.last.ended + 1000)) {
+        //LOG_MSG("CMOS_timerevent: cmos.regs[0xb] & 0x10u");
+        cmos.last.ended = index;
+        cmos.regs[0xc] |= 0x10;    // Update-Ended Interrupt Flag (UF)
     }
 }
 
 static void cmos_checktimer(void) {
     PIC_RemoveEvents(cmos_timerevent);
+    cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
+    if(!cmos.timer.div) return; // 0 means none
     if (cmos.timer.div<=2) cmos.timer.div+=7;
     cmos.timer.delay=(1000.0f/(32768.0f / (1 << (cmos.timer.div - 1))));
-    if (!cmos.timer.div || !cmos.timer.enabled) return;
     LOG(LOG_PIT,LOG_NORMAL)("RTC Timer at %.2f hz",1000.0/cmos.timer.delay);
 //  PIC_AddEvent(cmos_timerevent,cmos.timer.delay);
     /* A rtc is always running */
     double remd=fmod(PIC_FullIndex(),(double)cmos.timer.delay);
-    PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay-remd)); //Should be more like a real pc. Check
+    //PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay-remd)); //Should be more like a real pc. Check
+    PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay)); //FIX ME: removed remd (weird value?)
 //  status reg A reading with this (and with other delays actually)
 }
 
@@ -125,6 +132,8 @@ void cmos_selreg(Bitu port,Bitu val,Bitu iolen) {
     cmos.reg=val & 0x3f;
     cmos.nmi=(val & 0x80)>0;
 }
+
+static bool read_regc = false;
 
 static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
     (void)port;//UNUSED
@@ -231,7 +240,7 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
                 // no need to set usec, we don't use it
             }
         }
-
+        cmos.reg = 0xFF;
         return;
     }
 
@@ -259,12 +268,11 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
         cmos_checktimer();
         break;
     case 0x0b:      /* Status reg B */
+        //if (read_regc) cmos.regs[0xc] = 0; // All flags are cleared by reading the register
         if(date_host_forced) {
             bool waslocked = cmos.lock;
-
             cmos.ampm = !(val & 0x02);
             cmos.bcd = !(val & 0x04);
-            cmos.timer.enabled = (val & 0x40) > 0;
             cmos.lock = (val & 0x80) != 0;
 
             if (cmos.lock)              // if locked, set locktime for later use
@@ -281,13 +289,16 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
                 // calculate new diff between real UTC and dosbox UTC
                 cmos.time_diff = cmos.locktime.tv_sec - time(NULL);
             }
-
             cmos.regs[cmos.reg] = (uint8_t)val;
+            cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
+            //cmos.timer.enabled = 1;
+            LOG_MSG("CMOS timer.enabled val: %d 0x40: %d 0x10: %d", val, val & 0x40, val & 0x10);
             cmos_checktimer();
         } else {
             cmos.bcd=!(val & 0x4);
             cmos.regs[cmos.reg]=(uint8_t)val;
-            cmos.timer.enabled=(val & 0x40)>0;
+            cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
+            LOG_MSG("CMOS timer.enabled val: %d 0x40: %d 0x10: %d", val, val & 0x40, val & 0x10);
             cmos_checktimer();
         }
         break;
@@ -305,6 +316,7 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
         LOG(LOG_BIOS, LOG_NORMAL)("CMOS:Writing to register %x", cmos.reg);
         cmos.regs[cmos.reg]=val & 0x7f;
     }
+    cmos.reg = 0xFF;
 }
 
 unsigned char CMOS_GetShutdownByte() {
@@ -427,18 +439,22 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
     case 0x0c:      /* Status register C */
     {
         cmos.timer.acknowledged=true;
-        uint8_t val = cmos.regs[0xc];
-        if (cmos.timer.enabled && ((cmos.regs[0xc] & 0x40) > 0)) { // If both PF and PIE are 1
-            val |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+        const uint8_t val_b = cmos.regs[0xb];
+        uint8_t val_c = cmos.regs[0xc];
+        if ((val_b & 0x40u) && (val_c & 0x40u)) { // If both PF and PIE are 1
+            val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        else if(((cmos.regs[0xb] & 0x10) > 0) && ((cmos.regs[0xc] & 0x10) > 0)) { // If both UF and UIE are 1
-            val |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+        else if((val_b & 0x10u) && (val_c & 0x10u)) { // If both UF and UIE are 1
+            val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        else if(((cmos.regs[0xb] & 0x20) > 0) && ((cmos.regs[0xc] & 0x20) > 0)) { // If both AF and AIE are 1
-            val |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+        else if((val_b & 0x20u) && (val_c & 0x20u)) { // If both AF and AIE are 1
+            val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        cmos.regs[0xc] = 0; // All flags are cleared by reading the register
-        return val;
+        //cmos.regs[0xc] = 0; // All flags are cleared by reading the register
+        //Hack: not clear Status register C despite it should be cleared after RESET or software read
+        read_regc = true;
+        //LOG_MSG("CMOS: Read Register C");
+        return val_c;
     }
     case 0x10:      /* Floppy size */
         drive_a = 0;
@@ -533,7 +549,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
     case 0x18:      /* Extended memory in KB High Byte */
     case 0x30:      /* Extended memory in KB Low Byte */
     case 0x31:      /* Extended memory in KB High Byte */
-//      LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
+        LOG_MSG("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
         return cmos.regs[cmos.reg];
     case 0x2F:
         extern bool PS1AudioCard;
@@ -577,7 +593,7 @@ void CMOS_Reset(Section* sec) {
     cmos.reg=0xa;
     cmos_writereg(0x71,0x26,1);
     cmos.reg=0xb;
-    cmos_writereg(0x71,0x2,1);  //Struct tm *loctime is of 24 hour format,
+    cmos_writereg(0x71,0x02,1);  //Struct tm *loctime is of 24 hour format,
     cmos.regs[0x0c] = 0;
     if(date_host_forced) {
         cmos.regs[0x0d]=(uint8_t)0x80;
