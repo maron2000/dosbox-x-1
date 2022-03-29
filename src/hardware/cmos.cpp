@@ -65,7 +65,9 @@ static struct {
     uint8_t reg;
     struct {
         bool enabled;
-        uint8_t div;
+        bool update_enabled;
+        uint8_t rs; // RS0-3 of Status Register A
+        uint8_t dv; // DV0-2 of Status Register A
         float delay;
         bool acknowledged;
     } timer;
@@ -80,44 +82,75 @@ static struct {
     struct timeval safetime;    // UTC time of last safe time
 } cmos;
 
+static uint8_t last_regb = 0;
+static bool write_regb = 0;
+static bool read_regc = false;
+#define DIV 8
+
 static void cmos_timerevent(Bitu val) {
     (void)val;//UNUSED
-    //if(cmos.timer.acknowledged) {
+    double index = PIC_FullIndex();
+    double remd = cmos.last.timer + cmos.timer.delay - index;
+    if(index <= cmos.last.timer) LOG_MSG("CMOS: index=%f, cmos.last.timer=%f", index, cmos.last.timer);
+    if(!(cmos.regs[0x0a] & 0x80) && (index >= cmos.last.ended + 1000 - 1.984 - 0.224)) {
+        cmos.regs[0x0a] |= 0x80; //set UIP flag
+        LOG_MSG("CMOS_timerevent: UIP flag %f", index);
+    }
+    if(remd >= cmos.timer.delay / DIV) {
+        //PIC_RemoveEvents(cmos_timerevent);
+        if(read_regc) {
+            read_regc = false;
+            cmos.regs[0x0c] = 0; // Hack: set time lag to reset Status Register C (cmos.timer.delay / DIV)
+        }
+        PIC_AddEvent(cmos_timerevent, (float)(cmos.timer.delay / DIV));
+        return;
+    }
+    else if(remd >= 0.001) {
+        PIC_AddEvent(cmos_timerevent, (float)remd);
+        return;
+    }
+    else {
         cmos.timer.acknowledged = false;
         if(cmos.timer.enabled) PIC_ActivateIRQ(8); //Fire IRQ only when timer is enabled
-        //PIC_ActivateIRQ(8);
-        else LOG_MSG("CMOS: cmos.regs[0x0b] & 0x40u = %x", cmos.regs[0x0b] & 0x40u); // Debug output
-    //}
-
-    double index = PIC_FullIndex();
-    double remd = fmod(index, (double)cmos.timer.delay);
+        cmos.last.timer = index;
+        cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
+        if(index >= (cmos.last.ended + 1000)) {
+            LOG_MSG("CMOS_timerevent: UF flag %f", index);
+            cmos.last.ended = index;
+            cmos.regs[0xc] |= 0x10;    // Update-Ended Interrupt Flag (UF)
+            cmos.regs[0x0a] &= 0x7f;   // reset UIP flag
+        }
+        //PIC_RemoveEvents(cmos_timerevent);
+        //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); //Should be more like a real pc. Check 
+        PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)/DIV + remd); 
+        return;
+    }
+    //double index = PIC_FullIndex();
+    //double remd = fmod(index, (double)cmos.timer.delay);
     //LOG_MSG("enabled=%d, regs=%x, index=%f, delay=%f, remd=%d", cmos.timer.enabled, cmos.regs[0x0b], index, cmos.timer.delay, remd);
-    /* PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); */ //Should be more like a real pc. Check 
-    PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)); //FIX ME: removed remd  
-    if(index >= (cmos.last.timer + cmos.timer.delay)) {
+    //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); //Should be more like a real pc. Check 
+    //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)); //FIX ME: removed remd  
+    //cmos.timer.acknowledged = true;
+    /* if(index >= (cmos.last.timer + cmos.timer.delay)) {
         //LOG_MSG("CMOS_timerevent: cmos.timer.enabled");
         cmos.last.timer = index;
         cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
-    }
-    else if(index >= (cmos.last.ended + 1000)) {
-        //LOG_MSG("CMOS_timerevent: cmos.regs[0xb] & 0x10u");
-        cmos.last.ended = index;
-        cmos.regs[0xc] |= 0x10;    // Update-Ended Interrupt Flag (UF)
-    }
+    }*/
 }
 
 static void cmos_checktimer(void) {
     PIC_RemoveEvents(cmos_timerevent);
     cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
-    if(!cmos.timer.div) return; // 0 means none
-    if (cmos.timer.div<=2) cmos.timer.div+=7;
-    cmos.timer.delay=(1000.0f/(32768.0f / (1 << (cmos.timer.div - 1))));
+    if(!cmos.timer.rs) return; // No interrupt when div=0
+    if (cmos.timer.rs<=2) cmos.timer.rs+=7; // Special care for div=1(3.0625ms same as div=8) 2(7.8125ms same as div=9)
+    cmos.timer.delay=(1000.0f/(32768.0f / (1 << (cmos.timer.rs - 1))));
     LOG(LOG_PIT,LOG_NORMAL)("RTC Timer at %.2f hz",1000.0/cmos.timer.delay);
 //  PIC_AddEvent(cmos_timerevent,cmos.timer.delay);
     /* A rtc is always running */
-    double remd=fmod(PIC_FullIndex(),(double)cmos.timer.delay);
+    cmos.last.timer = PIC_FullIndex();
+    double remd=fmod(cmos.last.timer,(double)cmos.timer.delay);
     //PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay-remd)); //Should be more like a real pc. Check
-    PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay)); //FIX ME: removed remd (weird value?)
+    PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay / DIV));
 //  status reg A reading with this (and with other delays actually)
 }
 
@@ -132,8 +165,6 @@ void cmos_selreg(Bitu port,Bitu val,Bitu iolen) {
     cmos.reg=val & 0x3f;
     cmos.nmi=(val & 0x80)>0;
 }
-
-static bool read_regc = false;
 
 static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
     (void)port;//UNUSED
@@ -240,7 +271,6 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
                 // no need to set usec, we don't use it
             }
         }
-        cmos.reg = 0xFF;
         return;
     }
 
@@ -264,11 +294,14 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
     case 0x0a:      /* Status reg A */
         cmos.regs[cmos.reg]=val & 0x7f;
         if ((val & 0x70)!=0x20) LOG(LOG_BIOS,LOG_ERROR)("CMOS:Illegal 22 stage divider value");
-        cmos.timer.div=(val & 0xf);
+        cmos.timer.rs=(val & 0xf);
+        if((cmos.timer.dv != ((val & 0x7f) >> 4)) || (((val & 0x7f) >> 4) >= 6)) {
+            cmos.last.ended = PIC_FullIndex() + 1500; // Count up start 1.5sec later if DV changed or held RESET (6 or 7)
+            LOG_MSG("CMOS: regA count up reset");
+        }
         cmos_checktimer();
         break;
     case 0x0b:      /* Status reg B */
-        //if (read_regc) cmos.regs[0xc] = 0; // All flags are cleared by reading the register
         if(date_host_forced) {
             bool waslocked = cmos.lock;
             cmos.ampm = !(val & 0x02);
@@ -316,7 +349,6 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
         LOG(LOG_BIOS, LOG_NORMAL)("CMOS:Writing to register %x", cmos.reg);
         cmos.regs[cmos.reg]=val & 0x7f;
     }
-    cmos.reg = 0xFF;
 }
 
 unsigned char CMOS_GetShutdownByte() {
@@ -436,24 +468,30 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
                 return (cmos.regs[0x0a]&0x7f);
             }
         }
+    case 0x0b:      /* Status register B */
+        LOG_MSG("CMOS: Read from reg B: %x", cmos.regs[0x0b]);
+        return cmos.regs[0x0b];
+        break;
     case 0x0c:      /* Status register C */
     {
         cmos.timer.acknowledged=true;
         const uint8_t val_b = cmos.regs[0xb];
         uint8_t val_c = cmos.regs[0xc];
-        if ((val_b & 0x40u) && (val_c & 0x40u)) { // If both PF and PIE are 1
+        if (val_b & val_c & 0x40u) { // If both PF and PIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        else if((val_b & 0x10u) && (val_c & 0x10u)) { // If both UF and UIE are 1
+        else if(val_b & val_c & 0x10u) { // If both UF and UIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        else if((val_b & 0x20u) && (val_c & 0x20u)) { // If both AF and AIE are 1
+        else if(val_b & val_c & 0x20u) { // If both AF and AIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
         }
-        //cmos.regs[0xc] = 0; // All flags are cleared by reading the register
-        //Hack: not clear Status register C despite it should be cleared after RESET or software read
         read_regc = true;
-        //LOG_MSG("CMOS: Read Register C");
+        /* else {
+            cmos.regs[0xc] = 0; // All flags are cleared by reading the register
+            //Hack: skip clear status register C despite it should be cleared after RESET or software read
+            //LOG_MSG("CMOS: Read Register C");
+        } */
         return val_c;
     }
     case 0x10:      /* Floppy size */
@@ -539,7 +577,6 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
         return 0;
 
 
-    case 0x0b:      /* Status register B */
     case 0x0d:      /* Status register D */
     case 0x0f:      /* Shutdown status byte */
     case 0x14:      /* Equipment */
@@ -563,6 +600,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
 
 void CMOS_SetRegister(Bitu regNr, uint8_t val) {
     cmos.regs[regNr] = val;
+    LOG_MSG("CMOS: set_register %x = %x", regNr, val);
 }
 
 
@@ -646,7 +684,7 @@ public:
         registerPOD(cmos.nmi);
         registerPOD(cmos.reg);
         registerPOD(cmos.timer.enabled);
-        registerPOD(cmos.timer.div);
+        registerPOD(cmos.timer.rs);
         registerPOD(cmos.timer.delay);
         registerPOD(cmos.timer.acknowledged);
         registerPOD(cmos.last.timer);
