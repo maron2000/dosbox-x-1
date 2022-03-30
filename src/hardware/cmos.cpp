@@ -65,7 +65,6 @@ static struct {
     uint8_t reg;
     struct {
         bool enabled;
-        bool update_enabled;
         uint8_t rs; // RS0-3 of Status Register A
         uint8_t dv; // DV0-2 of Status Register A
         float delay;
@@ -82,76 +81,85 @@ static struct {
     struct timeval safetime;    // UTC time of last safe time
 } cmos;
 
-static uint8_t last_regb = 0;
-static bool write_regb = 0;
 static bool read_regc = false;
-#define DIV 8
+static bool update_reset = false; // reset flag of 5-7th bit of Status register A
+static bool update_start = true;
+static double error = 0;  // accumulated error between target and actual time of firing IRQ
+static double error1 = 0; // error between target and actual time of firing IRQ
+#define DIV 4
 
 static void cmos_timerevent(Bitu val) {
     (void)val;//UNUSED
     double index = PIC_FullIndex();
-    double remd = cmos.last.timer + cmos.timer.delay - index;
+    double remd = cmos.last.timer + cmos.timer.delay - index; // remaining time to fire IRQ8
+    if(update_reset) update_start = false;
     if(index <= cmos.last.timer) LOG_MSG("CMOS: index=%f, cmos.last.timer=%f", index, cmos.last.timer);
-    if(!(cmos.regs[0x0a] & 0x80) && (index >= cmos.last.ended + 1000 - 1.984 - 0.224)) {
-        cmos.regs[0x0a] |= 0x80; //set UIP flag
-        LOG_MSG("CMOS_timerevent: UIP flag %f", index);
+    if(!(cmos.regs[0x0a] & 0x80) && (index >= cmos.last.ended + 1000 - 1.984 - 0.224 - 0.001)) {
+        if(!update_reset) {
+            if(update_start) cmos.regs[0x0a] |= 0x80; //set UIP flag (registers under update)
+        }
+        else {
+            update_start = true; // skip update flag once after reset flag is gone (flag starts 1.5sec after reset) 
+        }
+        //LOG_MSG("CMOS_timerevent: UIP flag update %d index %f", update_start, index);
     }
+    
     if(remd >= cmos.timer.delay / DIV) {
         //PIC_RemoveEvents(cmos_timerevent);
         if(read_regc) {
             read_regc = false;
             cmos.regs[0x0c] = 0; // Hack: set time lag to reset Status Register C (cmos.timer.delay / DIV)
         }
-        PIC_AddEvent(cmos_timerevent, (float)(cmos.timer.delay / DIV));
-        return;
-    }
-    else if(remd >= 0.001) {
-        PIC_AddEvent(cmos_timerevent, (float)remd);
-        return;
-    }
-    else {
-        cmos.timer.acknowledged = false;
-        if(cmos.timer.enabled) PIC_ActivateIRQ(8); //Fire IRQ only when timer is enabled
-        cmos.last.timer = index;
-        cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
-        if(index >= (cmos.last.ended + 1000)) {
-            LOG_MSG("CMOS_timerevent: UF flag %f", index);
-            cmos.last.ended = index;
-            cmos.regs[0xc] |= 0x10;    // Update-Ended Interrupt Flag (UF)
-            cmos.regs[0x0a] &= 0x7f;   // reset UIP flag
+        if((remd >= (double)cmos.timer.delay / DIV * 2) || (-error < (double)(cmos.timer.delay / DIV))) {
+            // goto next step
+            // skip if error is larger than next step
+            PIC_AddEvent(cmos_timerevent, (float)(cmos.timer.delay / DIV));
+            return;
         }
-        //PIC_RemoveEvents(cmos_timerevent);
-        //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); //Should be more like a real pc. Check 
-        PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)/DIV + remd); 
-        return;
     }
-    //double index = PIC_FullIndex();
-    //double remd = fmod(index, (double)cmos.timer.delay);
-    //LOG_MSG("enabled=%d, regs=%x, index=%f, delay=%f, remd=%d", cmos.timer.enabled, cmos.regs[0x0b], index, cmos.timer.delay, remd);
-    //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay - remd)); //Should be more like a real pc. Check 
-    //PIC_AddEvent(cmos_timerevent, (float)((double)cmos.timer.delay)); //FIX ME: removed remd  
-    //cmos.timer.acknowledged = true;
-    /* if(index >= (cmos.last.timer + cmos.timer.delay)) {
-        //LOG_MSG("CMOS_timerevent: cmos.timer.enabled");
-        cmos.last.timer = index;
-        cmos.regs[0xc] |= 0x40;    // Periodic Interrupt Flag (PF)
-    }*/
+    /* else if(remd >= 0.01) {
+        PIC_AddEvent(cmos_timerevent, (float)(remd));
+        return;
+    } */
+    cmos.timer.acknowledged = false;
+    error1 = index - cmos.last.timer - cmos.timer.delay;
+    error += error1;
+    bool fired_IRQ8 = false;
+    if(cmos.timer.enabled && cmos.timer.rs) {
+        PIC_ActivateIRQ(8); //Fire IRQ only when timer is enabled
+        fired_IRQ8 = true;
+        //LOG_MSG("CMOS: IRQ8 (PI) interval = %f delay=%f error=%f error1=%f", index - cmos.last.timer, cmos.timer.delay, error, error1);
+    }
+    cmos.last.timer = index;
+    if (cmos.timer.rs) cmos.regs[0xc] |= 0x40;    // set Periodic Interrupt Flag (PF)
+    if((index >= (cmos.last.ended + 1000 - (cmos.timer.delay / DIV))) && update_start) { // only when DV flag != reset (update_start = true) 
+        if(!fired_IRQ8 && (cmos.regs[0x0b] & 0x10u)) { // don't fire IRQ twice on same time
+            PIC_ActivateIRQ(8); // Fire IRQ if UI enabled and PI not enabled
+            //LOG_MSG("CMOS: IRQ8 (UI) interval = %f delay=%f error=%f error1=%f", index - cmos.last.timer, cmos.timer.delay, error, error1);
+        }
+        //LOG_MSG("CMOS: IRQ8 (UF) index = %f interval = %f", index, index - cmos.last.ended);
+        cmos.last.ended = index;
+        cmos.regs[0xc] |= 0x10;    // set Update-Ended Interrupt Flag (UF)
+        cmos.regs[0x0a] &= 0x7f;   // reset UIP flag
+    }
+    double next_delay = cmos.timer.delay / DIV - error; //set next step considering time errors
+    if(next_delay <= 0) {
+        next_delay = 0.001;
+        LOG_MSG("CMOS: next_delay negative, set 0.001");
+    }
+    PIC_AddEvent(cmos_timerevent, (float)next_delay);
+    return;
 }
 
 static void cmos_checktimer(void) {
     PIC_RemoveEvents(cmos_timerevent);
-    cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
-    if(!cmos.timer.rs) return; // No interrupt when div=0
-    if (cmos.timer.rs<=2) cmos.timer.rs+=7; // Special care for div=1(3.0625ms same as div=8) 2(7.8125ms same as div=9)
+    cmos.timer.enabled = (cmos.regs[0x0b] & 0x40u); // check PI flag (fire IRQ8 or not)
+    if (cmos.timer.rs<=2) cmos.timer.rs+=7; // Special care for rs=1(3.0625ms same as rs=8) 2(7.8125ms same as rs=9)
     cmos.timer.delay=(1000.0f/(32768.0f / (1 << (cmos.timer.rs - 1))));
     LOG(LOG_PIT,LOG_NORMAL)("RTC Timer at %.2f hz",1000.0/cmos.timer.delay);
-//  PIC_AddEvent(cmos_timerevent,cmos.timer.delay);
     /* A rtc is always running */
-    cmos.last.timer = PIC_FullIndex();
-    double remd=fmod(cmos.last.timer,(double)cmos.timer.delay);
-    //PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay-remd)); //Should be more like a real pc. Check
-    PIC_AddEvent(cmos_timerevent,(float)((double)cmos.timer.delay / DIV));
-//  status reg A reading with this (and with other delays actually)
+    error = 0; // reset accumulated errors 
+    PIC_AddEvent(cmos_timerevent,(float)(cmos.timer.delay / DIV)); // Time steps are defined by rs, but run steps in shorter steps
 }
 
 void cmos_selreg(Bitu port,Bitu val,Bitu iolen) {
@@ -295,10 +303,11 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
         cmos.regs[cmos.reg]=val & 0x7f;
         if ((val & 0x70)!=0x20) LOG(LOG_BIOS,LOG_ERROR)("CMOS:Illegal 22 stage divider value");
         cmos.timer.rs=(val & 0xf);
-        if((cmos.timer.dv != ((val & 0x7f) >> 4)) || (((val & 0x7f) >> 4) >= 6)) {
-            cmos.last.ended = PIC_FullIndex() + 1500; // Count up start 1.5sec later if DV changed or held RESET (6 or 7)
-            LOG_MSG("CMOS: regA count up reset");
+        if(((val & 0x7f) >> 4) >= 6) {
+            update_reset = true;
+            //LOG_MSG("CMOS: regA count up reset");
         }
+        else update_reset = false;
         cmos_checktimer();
         break;
     case 0x0b:      /* Status reg B */
@@ -323,14 +332,13 @@ static void cmos_writereg(Bitu port,Bitu val,Bitu iolen) {
                 cmos.time_diff = cmos.locktime.tv_sec - time(NULL);
             }
             cmos.regs[cmos.reg] = (uint8_t)val;
-            cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
-            //cmos.timer.enabled = 1;
+            cmos.timer.enabled = cmos.regs[0x0b] & 0x40u;
             LOG_MSG("CMOS timer.enabled val: %d 0x40: %d 0x10: %d", val, val & 0x40, val & 0x10);
             cmos_checktimer();
         } else {
             cmos.bcd=!(val & 0x4);
             cmos.regs[cmos.reg]=(uint8_t)val;
-            cmos.timer.enabled = (cmos.regs[0x0b] & (0x40u | 0x10u));
+            cmos.timer.enabled = cmos.regs[0x0b] & 0x40u;
             LOG_MSG("CMOS timer.enabled val: %d 0x40: %d 0x10: %d", val, val & 0x40, val & 0x10);
             cmos_checktimer();
         }
@@ -468,10 +476,6 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
                 return (cmos.regs[0x0a]&0x7f);
             }
         }
-    case 0x0b:      /* Status register B */
-        LOG_MSG("CMOS: Read from reg B: %x", cmos.regs[0x0b]);
-        return cmos.regs[0x0b];
-        break;
     case 0x0c:      /* Status register C */
     {
         cmos.timer.acknowledged=true;
@@ -577,6 +581,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
         return 0;
 
 
+    case 0x0b:      /* Status register B */
     case 0x0d:      /* Status register D */
     case 0x0f:      /* Shutdown status byte */
     case 0x14:      /* Equipment */
@@ -586,7 +591,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
     case 0x18:      /* Extended memory in KB High Byte */
     case 0x30:      /* Extended memory in KB Low Byte */
     case 0x31:      /* Extended memory in KB High Byte */
-        LOG_MSG("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
+        //LOG_MSG("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
         return cmos.regs[cmos.reg];
     case 0x2F:
         extern bool PS1AudioCard;
