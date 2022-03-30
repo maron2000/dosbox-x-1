@@ -131,7 +131,7 @@ static void cmos_timerevent(Bitu val) {
         //LOG_MSG("CMOS: IRQ8 (PI) interval = %f delay=%f error=%f error1=%f", index - cmos.last.timer, cmos.timer.delay, error, error1);
     }
     cmos.last.timer = index;
-    if (cmos.timer.rs) cmos.regs[0xc] |= 0x40;    // set Periodic Interrupt Flag (PF)
+    if (cmos.timer.rs) cmos.regs[0xc] |= 0x40;    // set Periodic Interrupt Flag (PF) regardless of IRQ fired
     if((index >= (cmos.last.ended + 1000 - (cmos.timer.delay / DIV))) && update_start) { // only when DV flag != reset (update_start = true) 
         if(!fired_IRQ8 && (cmos.regs[0x0b] & 0x10u)) { // don't fire IRQ twice on same time
             PIC_ActivateIRQ(8); // Fire IRQ if UI enabled and PI not enabled
@@ -139,7 +139,7 @@ static void cmos_timerevent(Bitu val) {
         }
         //LOG_MSG("CMOS: IRQ8 (UF) index = %f interval = %f", index, index - cmos.last.ended);
         cmos.last.ended = index;
-        cmos.regs[0xc] |= 0x10;    // set Update-Ended Interrupt Flag (UF)
+        cmos.regs[0xc] |= 0x10;    // set Update-Ended Interrupt Flag (UF) regardless of IRQ fired
         cmos.regs[0x0a] &= 0x7f;   // reset UIP flag
     }
     double next_delay = cmos.timer.delay / DIV - error; //set next step considering time errors
@@ -483,19 +483,19 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
         uint8_t val_c = cmos.regs[0xc];
         if (val_b & val_c & 0x40u) { // If both PF and PIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+            cmos.regs[0x0c] = val_c;
         }
         else if(val_b & val_c & 0x10u) { // If both UF and UIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+            cmos.regs[0x0c] = val_c;
         }
         else if(val_b & val_c & 0x20u) { // If both AF and AIE are 1
             val_c |= 0x80; // Set Interrupt Request Flag (IRQF) to 1
+            cmos.regs[0x0c] = val_c;
         }
-        read_regc = true;
-        /* else {
-            cmos.regs[0xc] = 0; // All flags are cleared by reading the register
-            //Hack: skip clear status register C despite it should be cleared after RESET or software read
-            //LOG_MSG("CMOS: Read Register C");
-        } */
+        read_regc = true; //Hack: status register C cleared in cmos_timerevent() with some time lag
+        // cmos.regs[0xc] = 0; // All flags are cleared by reading the register
+
         return val_c;
     }
     case 0x10:      /* Floppy size */
@@ -591,7 +591,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
     case 0x18:      /* Extended memory in KB High Byte */
     case 0x30:      /* Extended memory in KB Low Byte */
     case 0x31:      /* Extended memory in KB High Byte */
-        //LOG_MSG("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
+        //LOG(LOG_BIOS,LOG_NORMAL)("CMOS:Read from reg %X : %04X",cmos.reg,cmos.regs[cmos.reg]);
         return cmos.regs[cmos.reg];
     case 0x2F:
         extern bool PS1AudioCard;
@@ -605,7 +605,7 @@ static Bitu cmos_readreg(Bitu port,Bitu iolen) {
 
 void CMOS_SetRegister(Bitu regNr, uint8_t val) {
     cmos.regs[regNr] = val;
-    LOG_MSG("CMOS: set_register %x = %x", regNr, val);
+    //LOG_MSG("CMOS: set_register %x = %x", regNr, val);
 }
 
 
