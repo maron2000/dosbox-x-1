@@ -73,6 +73,7 @@ struct PIT_Block {
     bool counterstatus_set = false; /* set by status_latch(), when using 8254 command to latch multiple counters */
     bool counting = false;          /* is counting (?) */
     bool update_count = false;      /* update count on completion */
+    bool error_adjust = false;      /* whether adjust time errors */
 
     bool gate = true;       /* gate signal (IN) */
     bool output = true;     /* output signal (OUT) */
@@ -118,26 +119,29 @@ struct PIT_Block {
          * Mode 1 will count down and stop. TODO: Writing a new counter without "new mode" starts another countdown? */
         /* if any periodic mode (Mode 2, 3, 4, 5), then process fully. */
         if (mode == 3) {
-            const double half = delay / 2;
+            //const double half = delay / 2;
 
-            if (now >= (start+half)) {
+            if (now >= start+delay-0.01) {
                 cycle_base = (cycle_base + 1u) & 1u;
-                start += half;
+                start += delay;
+                //if (now-start-delay >= 0.1)
+                //    LOG_MSG("timer now %f start %f now-start-delay %f", now, start, now - start - delay);
 
                 if (update_count) {
                     latch_next_counter();
                     update_count = false;
                 }
 
-                if (now >= (start+half)) {
-                    unsigned int cnt = (unsigned int)floor((now - start) / half);
-                    cycle_base = (cycle_base + cnt) & 1u;
-                    start += cnt * half;
+                if (now >= start+delay-0.01) {
+                    unsigned int cnt = (unsigned int)floor((now - start) / delay);
+                    //cycle_base = (cycle_base + cnt) & 1u;
+                    start += cnt * delay;
+                    //LOG_MSG("Timer 2nd time");
                 }
             }
         }
         else if (mode >= 2) {
-            if (now >= (start+delay)) {
+            if (now >= (start+delay)-0.01) {
                 start += delay;
 
                 if (update_count) {
@@ -276,7 +280,8 @@ struct PIT_Block {
                 break;
             case 3:		/* Square Wave Rate Generator */
                 {
-                    double tmp = strcasecmp(RunningProgram, "JUMPMAN")?fmod(index,(double)delay * 2):(fmod(index,(double)delay) * 2);
+                    //double tmp = fmod(index,(double)delay * 2);
+                    double tmp = fmod(index, (double)delay);
 
                     if (tmp < 0) {
                         fprintf(stderr,"tmp %.9f index %.9f delay %.9f now %.3f start %.3f\n",tmp,index,delay,now,start);
@@ -284,10 +289,9 @@ struct PIT_Block {
                     }
 
                     ret.cycle = cycle_base;
-                    if (tmp >= delay) {
-                        tmp -= delay;
-                        ret.cycle = (ret.cycle + 1u) & 1u;
-                    }
+                    //if (tmp <= 0.01) {
+                    //    ret.cycle = (ret.cycle + 1u) & 1u;
+                    //}
 
                     ret.counter = ((uint16_t)(cntr_cur - ((tmp * cntr_cur) / delay))) & 0xFFFEu; /* always even value */
                 }
@@ -306,26 +310,37 @@ static uint8_t latched_timerstatus;
 // the timer status can not be overwritten until it is read or the timer was 
 // reprogrammed.
 static bool latched_timerstatus_locked;
+static double last_pit0event = 0;
+static double accum_err = 0;
 
 unsigned long PIT_TICK_RATE = PIT_TICK_RATE_IBM;
 
 static void PIT0_Event(Bitu /*val*/) {
 	PIC_ActivateIRQ(0);
 	if (pit[0].mode != 0) {
-		pit[0].track_time(PIC_FullIndex());
+        double index = PIC_FullIndex();
+        pit[0].track_time(index);
 
         /* event timing error checking */
-        double err = PIC_GetCurrentEventTime() - pit[0].start;
-
-        if (err >= (pit[0].delay/2))
-            err -=  pit[0].delay;
+        double err = index - last_pit0event - pit[0].delay;
+        const double adjust = (pit[0].delay >= 1 ? 0.1 : 0.01);
+        if(pit[0].error_adjust) accum_err += err;
 
 #if 0//change if debug information wanted
         if (fabs(err) >= (0.5 / CPU_CycleMax))
             LOG_MSG("PIT0_Event timing error %.6fms",err);
 #endif
-
-        PIC_AddEvent(PIT0_Event,pit[0].delay - (err * 0.05));
+        if(pit[0].error_adjust && abs(accum_err) >= adjust) {
+            PIC_AddEvent(PIT0_Event, pit[0].delay - adjust);
+            accum_err -= adjust;
+            LOG_MSG("Timer: adjust delay");
+        }
+        else {
+            PIC_AddEvent(PIT0_Event, pit[0].delay);
+            pit[0].error_adjust = true;
+        }
+        //LOG_MSG("timer: PIT0_event index:%f interval: %f, delay=%f, err=%f", index, index - last_pit0event, pit[0].delay, accum_err);
+        last_pit0event = index;
 	}
 }
 
@@ -427,7 +442,7 @@ static void write_latch(Bitu port,Bitu val,Bitu /*iolen*/) {
         }
     }
 
-	Bitu counter=port-0x40;
+	uint8_t counter=(port & 0xFF)-0x40;
 	PIT_Block * p=&pit[counter];
 	if(p->bcd == true) BIN2BCD(p->write_latch);
    
@@ -509,6 +524,13 @@ static void write_latch(Bitu port,Bitu val,Bitu /*iolen*/) {
 		case 0x00:			/* Timer hooked to IRQ 0 */
             PIC_RemoveEvents(PIT0_Event);
             PIC_AddEvent(PIT0_Event,p->delay);
+            if(p->mode == 3) {
+               p->cycle_base = (p->cycle_base + 1) & 1;
+            }
+            last_pit0event = p->start;
+            accum_err = 0;
+            pit[0].error_adjust = false;
+            //LOG_MSG("timer Addevent2 delay=%f", p->delay);
 
 #if 0//change to #if 1 if you want to debug Mode 0 one-shot events
             if (p->mode == 0)
@@ -568,7 +590,7 @@ static Bitu read_latch(Bitu port,Bitu /*iolen*/) {
         }
     }
 
-	uint32_t counter=(uint32_t)(port-0x40);
+	uint8_t counter=(port-0x40) & 0x03;
 	uint8_t ret=0;
 	if(GCC_UNLIKELY(pit[counter].counterstatus_set)){
 		pit[counter].counterstatus_set = false;
