@@ -123,6 +123,7 @@ struct PIT_Block {
 
             if (now >= start+delay-0.01) {
                 cycle_base = (cycle_base + 1u) & 1u;
+                //LOG_MSG("Timer: cycle_base=%d",cycle_base);
                 start += delay;
                 //if (now-start-delay >= 0.1)
                 //    LOG_MSG("timer now %f start %f now-start-delay %f", now, start, now - start - delay);
@@ -292,7 +293,7 @@ struct PIT_Block {
                     //if (tmp <= 0.01) {
                     //    ret.cycle = (ret.cycle + 1u) & 1u;
                     //}
-
+                    //LOG_MSG("Timer: index=%f, ret.cycle=%f", index, ret.cycle);
                     ret.counter = ((uint16_t)(cntr_cur - ((tmp * cntr_cur) / delay))) & 0xFFFEu; /* always even value */
                 }
                 break;
@@ -323,21 +324,34 @@ static void PIT0_Event(Bitu /*val*/) {
 
         /* event timing error checking */
         double err = index - last_pit0event - pit[0].delay;
-        const double adjust = (pit[0].delay >= 1 ? 0.1 : 0.01);
+        const double adjust = pit[0].delay / 10;
         if(pit[0].error_adjust) accum_err += err;
 
 #if 0//change if debug information wanted
         if (fabs(err) >= (0.5 / CPU_CycleMax))
             LOG_MSG("PIT0_Event timing error %.6fms",err);
 #endif
-        if(pit[0].error_adjust && abs(accum_err) >= adjust) {
-            PIC_AddEvent(PIT0_Event, pit[0].delay - adjust);
-            accum_err -= adjust;
-            LOG_MSG("Timer: adjust delay");
+        if(pit[0].error_adjust && fabs(accum_err) >= adjust) {
+            if(accum_err >= 0) {
+                if(pit[0].delay - accum_err > 0.5){
+                    PIC_AddEvent(PIT0_Event, pit[0].delay - accum_err);
+                    accum_err = 0;
+                }
+                else {
+                    PIC_AddEvent(PIT0_Event, pit[0].delay - adjust);
+                    accum_err -= adjust;
+                }
+            }
+            else {
+                PIC_AddEvent(PIT0_Event, pit[0].delay + adjust);
+                accum_err += adjust;
+            }
+            //LOG_MSG("Timer: adjust delay %f", accum_err);
         }
         else {
             PIC_AddEvent(PIT0_Event, pit[0].delay);
             pit[0].error_adjust = true;
+            //LOG_MSG("timer: PIT0_event index:%f interval: %f, delay=%f, err=%f", index, index - last_pit0event, pit[0].delay, accum_err);
         }
         //LOG_MSG("timer: PIT0_event index:%f interval: %f, delay=%f, err=%f", index, index - last_pit0event, pit[0].delay, accum_err);
         last_pit0event = index;
@@ -526,6 +540,7 @@ static void write_latch(Bitu port,Bitu val,Bitu /*iolen*/) {
             PIC_AddEvent(PIT0_Event,p->delay);
             if(p->mode == 3) {
                p->cycle_base = (p->cycle_base + 1) & 1;
+               //LOG_MSG("Timer: cycle_base2=%d", p->cycle_base);
             }
             last_pit0event = p->start;
             accum_err = 0;
