@@ -37,6 +37,10 @@
 bool speaker_clock_lock_on = false;
 extern const char* RunningProgram;
 
+double my_fmod(double x, double y) {
+    return x - y * trunc(x / y);
+}
+
 static INLINE void BIN2BCD(uint16_t& val) {
 	uint16_t temp=val%10 + (((val/10)%10)<<4)+ (((val/100)%10)<<8) + (((val/1000)%10)<<12);
 	val=temp;
@@ -270,13 +274,16 @@ struct PIT_Block {
                     ret.counter = 0xFFFF;
                 else
                     ret.counter = (uint16_t)(cntr_cur - (index * (PIT_TICK_RATE / 1000.0)));
+                    //LOG_MSG("Timer: mode 1 now=%f, counter=%d", now, ret.counter);
                 break;
             case 2:		/* Rate Generator */
                 ret.counter = (uint16_t)(cntr_cur - ((fmod(index,delay) / delay) * cntr_cur));
+                //LOG_MSG("Timer: mode 2 now=%f, interval=%f, delay=%f, counter=%d", now, now-start, delay, ret.counter);
                 break;
             case 3:		/* Square Wave Rate Generator */
                 {
-                    double tmp = strcasecmp(RunningProgram, "JUMPMAN")?fmod(index,(double)delay * 2):(fmod(index,(double)delay) * 2);
+                    //double tmp = strcasecmp(RunningProgram, "JUMPMAN")?fmod(index,(double)delay * 2):(fmod(index,(double)delay) * 2);
+                    double tmp = cycle_base ? fmod(index, (double)delay) * 2 : fmod(index, (double)delay);
 
                     if (tmp < 0) {
                         fprintf(stderr,"tmp %.9f index %.9f delay %.9f now %.3f start %.3f\n",tmp,index,delay,now,start);
@@ -290,6 +297,7 @@ struct PIT_Block {
                     }
 
                     ret.counter = ((uint16_t)(cntr_cur - ((tmp * cntr_cur) / delay))) & 0xFFFEu; /* always even value */
+                    //LOG_MSG("Timer: mode 3 now=%f, cycle=%d", now, ret.cycle);
                 }
                 break;
             default:
@@ -509,6 +517,7 @@ static void write_latch(Bitu port,Bitu val,Bitu /*iolen*/) {
 		case 0x00:			/* Timer hooked to IRQ 0 */
             PIC_RemoveEvents(PIT0_Event);
             PIC_AddEvent(PIT0_Event,p->delay);
+            //LOG_MSG("Timer: now=%f, cycle=%d", p->now, p->cycle_base);
 
 #if 0//change to #if 1 if you want to debug Mode 0 one-shot events
             if (p->mode == 0)
