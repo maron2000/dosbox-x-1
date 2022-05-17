@@ -610,6 +610,7 @@ static Bitu IRQ1_Handler(void) {
             flags1 |=0x08;
             if (flags3 &0x02) flags3 |=0x08;
             else flags2 |=0x02;
+            if(flags3 & 0x08) flags2 &= 0xFE; // Hack: Release Left Ctrl when Right Alt is pressed
         }
         break;
     case 0xb8:                      /* Alt Released */
