@@ -610,10 +610,10 @@ static Bitu IRQ1_Handler(void) {
             flags1 |=0x08;
             if (flags3 &0x02) flags3 |=0x08;
             else flags2 |=0x02;
-            if(flags3 & 0x08) {  // when Right Alt is pressed
-                flags1 &= ~0x04; // Hack: Delete Ctrl mod key 
-                flags2 &= ~0x01; // Hack: Delete Left Ctrl mod key
-            }
+        }
+        if(flags3 & 0x08) {  // when Right Alt is pressed
+            flags1 &= ~0x04; // Hack: Delete Ctrl mod key 
+            flags2 &= ~0x01; // Hack: Delete Left Ctrl mod key
         }
         break;
     case 0xb8:                      /* Alt Released */
