@@ -1530,7 +1530,7 @@ public:
 #else
         if(key == SDL_SCANCODE_LCTRL && event->type == SDL_KEYDOWN) {
 #endif
-            LOG_MSG("LCTRL pressed: scancode=%x, sym=%x", event->key.keysym.scancode, event->key.keysym.sym);
+            LOG_MSG("LCTRL pressed: scancode=%d, sym=%d, enhanced=%d", event->key.keysym.scancode, event->key.keysym.sym, event->key.keysym.enhanced);
             pressed_LCTRL = true;
             return 0;
         }

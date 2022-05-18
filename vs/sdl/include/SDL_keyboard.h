@@ -64,6 +64,7 @@ typedef struct SDL_keysym {
 	Uint16 unicode;			/**< translated character */
 #if defined(_WIN32)
 	Uint32 win32_vk;	/**< Windows virtual key */
+    Uint8  enhanced;    /* Enhanced flag */
 #endif
 #if defined(SDL_VIDEO_DRIVER_X11)
     Uint32 x11_sym;     /**< X11 sym */

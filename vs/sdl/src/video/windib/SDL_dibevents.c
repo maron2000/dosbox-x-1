@@ -317,6 +317,7 @@ LRESULT DIB_HandleMessage(_THIS, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
 			}
 #endif /* NO_GETKEYBOARDSTATE */
             {
+                keysym.enhanced = (HIWORD(lParam) >> 8) & 0x03;
                 SDL_keysym *key =  TranslateKey(wParam,HIWORD(lParam),&keysym,1);
 #ifdef ENABLE_IM_EVENT
                 if (!IM_Context.bCompos && (GetTickCount() - end_ticks > IME_END_CR_WAIT || key->sym != 0x0d))
