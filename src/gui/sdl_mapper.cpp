@@ -1530,7 +1530,7 @@ public:
 #else
         if(key == SDL_SCANCODE_LCTRL && event->type == SDL_KEYDOWN) {
 #endif
-            LOG_MSG("LCTRL pressed");
+            LOG_MSG("LCTRL pressed: scancode=%x, sym=%x", event->key.keysym.scancode, event->key.keysym.sym);
             pressed_LCTRL = true;
             return 0;
         }
@@ -1540,7 +1540,7 @@ public:
 #else
             if(key != SDL_SCANCODE_RALT) {
 #endif
-                LOG_MSG("Bind LCTRL");
+                //LOG_MSG("Bind LCTRL");
 #if !defined(C_SDL2)
                 ActivateBindList(&lists[SDLK_LCTRL], 0x7fff, true);
 #else
