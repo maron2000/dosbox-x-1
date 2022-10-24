@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,7 +29,6 @@
 #include "../../events/scancodes_darwin.h"
 
 #include <Carbon/Carbon.h>
-#include <IOKit/hid/IOHIDLib.h>
 
 /*#define DEBUG_IME NSLog */
 #define DEBUG_IME(...)
@@ -41,12 +40,12 @@
     SDL_Rect  _inputRect;
 }
 - (void)doCommandBySelector:(SEL)myselector;
-- (void)setInputRect:(SDL_Rect *)rect;
+- (void)setInputRect:(const SDL_Rect *)rect;
 @end
 
 @implementation SDLTranslatorResponder
 
-- (void)setInputRect:(SDL_Rect *)rect
+- (void)setInputRect:(const SDL_Rect *)rect
 {
     _inputRect = *rect;
 }
@@ -105,8 +104,7 @@
     }
 
     if (_markedText != aString) {
-        [_markedText release];
-        _markedText = [aString retain];
+        _markedText = aString;
     }
 
     _selectedRange = selectedRange;
@@ -121,7 +119,6 @@
 
 - (void)unmarkText
 {
-    [_markedText release];
     _markedText = nil;
 
     SDL_SendEditingText("", 0, 0);
@@ -143,14 +140,7 @@
             aRange.location, aRange.length, windowHeight,
             NSStringFromRect(rect));
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
-    if (![window respondsToSelector:@selector(convertRectToScreen:)]) {
-        rect.origin = [window convertBaseToScreen:rect.origin];
-    } else
-#endif
-    {
-        rect = [window convertRectToScreen:rect];
-    }
+    rect = [window convertRectToScreen:rect];
 
     return rect;
 }
@@ -187,115 +177,6 @@
 
 @end
 
-/*------------------------------------------------------------------------------
-Set up a HID callback to properly detect Caps Lock up/down events.
-Derived from:
-http://stackoverflow.com/questions/7190852/using-iohidmanager-to-get-modifier-key-events
-*/
-
-static IOHIDManagerRef s_hidManager = NULL;
-
-static void
-HIDCallback(void *context, IOReturn result, void *sender, IOHIDValueRef value)
-{
-    if (context != s_hidManager) {
-        /* An old callback, ignore it (related to bug 2157 below) */
-        return;
-    }
-
-    IOHIDElementRef elem = IOHIDValueGetElement(value);
-    if (IOHIDElementGetUsagePage(elem) != kHIDPage_KeyboardOrKeypad
-        || IOHIDElementGetUsage(elem) != kHIDUsage_KeyboardCapsLock) {
-        return;
-    }
-    CFIndex pressed = IOHIDValueGetIntegerValue(value);
-    SDL_SendKeyboardKey(pressed ? SDL_PRESSED : SDL_RELEASED, SDL_SCANCODE_CAPSLOCK);
-}
-
-static CFDictionaryRef
-CreateHIDDeviceMatchingDictionary(UInt32 usagePage, UInt32 usage)
-{
-    CFMutableDictionaryRef dict = CFDictionaryCreateMutable(kCFAllocatorDefault,
-        0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    if (dict) {
-        CFNumberRef number = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &usagePage);
-        if (number) {
-            CFDictionarySetValue(dict, CFSTR(kIOHIDDeviceUsagePageKey), number);
-            CFRelease(number);
-            number = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &usage);
-            if (number) {
-                CFDictionarySetValue(dict, CFSTR(kIOHIDDeviceUsageKey), number);
-                CFRelease(number);
-                return dict;
-            }
-        }
-        CFRelease(dict);
-    }
-    return NULL;
-}
-
-static void
-QuitHIDCallback()
-{
-    if (!s_hidManager) {
-        return;
-    }
-
-#if 0 /* Releasing here causes a crash on Mac OS X 10.10 and earlier,
-       * so just leak it for now. See bug 2157 for details.
-       */
-    IOHIDManagerUnscheduleFromRunLoop(s_hidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
-    IOHIDManagerRegisterInputValueCallback(s_hidManager, NULL, NULL);
-    IOHIDManagerClose(s_hidManager, 0);
-
-    CFRelease(s_hidManager);
-#endif
-    s_hidManager = NULL;
-}
-
-static void
-InitHIDCallback()
-{
-    s_hidManager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
-    if (!s_hidManager) {
-        return;
-    }
-    CFDictionaryRef keyboard = NULL, keypad = NULL;
-    CFArrayRef matches = NULL;
-    keyboard = CreateHIDDeviceMatchingDictionary(kHIDPage_GenericDesktop, kHIDUsage_GD_Keyboard);
-    if (!keyboard) {
-        goto fail;
-    }
-    keypad = CreateHIDDeviceMatchingDictionary(kHIDPage_GenericDesktop, kHIDUsage_GD_Keypad);
-    if (!keypad) {
-        goto fail;
-    }
-    CFDictionaryRef matchesList[] = { keyboard, keypad };
-    matches = CFArrayCreate(kCFAllocatorDefault, (const void **)matchesList, 2, NULL);
-    if (!matches) {
-        goto fail;
-    }
-    IOHIDManagerSetDeviceMatchingMultiple(s_hidManager, matches);
-    IOHIDManagerRegisterInputValueCallback(s_hidManager, HIDCallback, s_hidManager);
-    IOHIDManagerScheduleWithRunLoop(s_hidManager, CFRunLoopGetMain(), kCFRunLoopDefaultMode);
-    if (IOHIDManagerOpen(s_hidManager, kIOHIDOptionsTypeNone) == kIOReturnSuccess) {
-        goto cleanup;
-    }
-
-fail:
-    QuitHIDCallback();
-
-cleanup:
-    if (matches) {
-        CFRelease(matches);
-    }
-    if (keypad) {
-        CFRelease(keypad);
-    }
-    if (keyboard) {
-        CFRelease(keyboard);
-    }
-}
 
 /* This is a helper function for HandleModifierSide. This
  * function reverts back to behavior before the distinction between
@@ -491,14 +372,14 @@ DoSidedModifiers(unsigned short scancode,
 static void
 HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
-    if (modifierFlags == data->modifierFlags) {
+    if (modifierFlags == data.modifierFlags) {
         return;
     }
 
-    DoSidedModifiers(scancode, data->modifierFlags, modifierFlags);
-    data->modifierFlags = modifierFlags;
+    DoSidedModifiers(scancode, data.modifierFlags, modifierFlags);
+    data.modifierFlags = modifierFlags;
 }
 
 static void
@@ -509,18 +390,19 @@ UpdateKeymap(SDL_VideoData *data, SDL_bool send_event)
     int i;
     SDL_Scancode scancode;
     SDL_Keycode keymap[SDL_NUM_SCANCODES];
+    CFDataRef uchrDataRef;
 
     /* See if the keymap needs to be updated */
     key_layout = TISCopyCurrentKeyboardLayoutInputSource();
-    if (key_layout == data->key_layout) {
+    if (key_layout == data.key_layout) {
         return;
     }
-    data->key_layout = key_layout;
+    data.key_layout = key_layout;
 
     SDL_GetDefaultKeymap(keymap);
 
     /* Try Unicode data first */
-    CFDataRef uchrDataRef = TISGetInputSourceProperty(key_layout, kTISPropertyUnicodeKeyLayoutData);
+    uchrDataRef = TISGetInputSourceProperty(key_layout, kTISPropertyUnicodeKeyLayoutData);
     if (uchrDataRef) {
         chr_data = CFDataGetBytePtr(uchrDataRef);
     } else {
@@ -557,10 +439,7 @@ UpdateKeymap(SDL_VideoData *data, SDL_bool send_event)
                 keymap[scancode] = s[0];
             }
         }
-        SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES);
-        if (send_event) {
-            SDL_SendKeymapChangedEvent();
-        }
+        SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES, send_event);
         return;
     }
 
@@ -571,7 +450,7 @@ cleanup:
 void
 Cocoa_InitKeyboard(_THIS)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
     UpdateKeymap(data, SDL_FALSE);
 
@@ -583,40 +462,39 @@ Cocoa_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_RALT, "Right Option");
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
 
-    data->modifierFlags = [NSEvent modifierFlags];
-    SDL_ToggleModState(KMOD_CAPS, (data->modifierFlags & NSEventModifierFlagCapsLock) != 0);
-
-    InitHIDCallback();
+    data.modifierFlags = (unsigned int)[NSEvent modifierFlags];
+    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) != 0);
 }
 
 void
 Cocoa_StartTextInput(_THIS)
 { @autoreleasepool
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    NSView *parentView;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
     SDL_Window *window = SDL_GetKeyboardFocus();
     NSWindow *nswindow = nil;
     if (window) {
-        nswindow = ((SDL_WindowData*)window->driverdata)->nswindow;
+        nswindow = ((__bridge SDL_WindowData*)window->driverdata).nswindow;
     }
 
-    NSView *parentView = [nswindow contentView];
+    parentView = [nswindow contentView];
 
     /* We only keep one field editor per process, since only the front most
      * window can receive text input events, so it make no sense to keep more
      * than one copy. When we switched to another window and requesting for
      * text input, simply remove the field editor from its superview then add
      * it to the front most window's content view */
-    if (!data->fieldEdit) {
-        data->fieldEdit =
+    if (!data.fieldEdit) {
+        data.fieldEdit =
             [[SDLTranslatorResponder alloc] initWithFrame: NSMakeRect(0.0, 0.0, 0.0, 0.0)];
     }
 
-    if (![[data->fieldEdit superview] isEqual:parentView]) {
+    if (![[data.fieldEdit superview] isEqual:parentView]) {
         /* DEBUG_IME(@"add fieldEdit to window contentView"); */
-        [data->fieldEdit removeFromSuperview];
-        [parentView addSubview: data->fieldEdit];
-        [nswindow makeFirstResponder: data->fieldEdit];
+        [data.fieldEdit removeFromSuperview];
+        [parentView addSubview: data.fieldEdit];
+        [nswindow makeFirstResponder: data.fieldEdit];
     }
 }}
 
@@ -624,38 +502,38 @@ void
 Cocoa_StopTextInput(_THIS)
 { @autoreleasepool
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
-    if (data && data->fieldEdit) {
-        [data->fieldEdit removeFromSuperview];
-        [data->fieldEdit release];
-        data->fieldEdit = nil;
+    if (data && data.fieldEdit) {
+        [data.fieldEdit removeFromSuperview];
+        data.fieldEdit = nil;
     }
 }}
 
 void
-Cocoa_SetTextInputRect(_THIS, SDL_Rect *rect)
+Cocoa_SetTextInputRect(_THIS, const SDL_Rect *rect)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
     if (!rect) {
         SDL_InvalidParamError("rect");
         return;
     }
 
-    [data->fieldEdit setInputRect:rect];
+    [data.fieldEdit setInputRect:rect];
 }
 
 void
 Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 {
-    SDL_VideoData *data = _this ? ((SDL_VideoData *) _this->driverdata) : NULL;
+    unsigned short scancode;
+    SDL_Scancode code;
+    SDL_VideoData *data = _this ? ((__bridge SDL_VideoData *) _this->driverdata) : nil;
     if (!data) {
         return;  /* can happen when returning from fullscreen Space on shutdown */
     }
 
-    unsigned short scancode = [event keyCode];
-    SDL_Scancode code;
+    scancode = [event keyCode];
 #if 0
     const char *text;
 #endif
@@ -687,7 +565,7 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 #endif
         if (SDL_EventState(SDL_TEXTINPUT, SDL_QUERY)) {
             /* FIXME CW 2007-08-16: only send those events to the field editor for which we actually want text events, not e.g. esc or function keys. Arrow keys in particular seem to produce crashes sometimes. */
-            [data->fieldEdit interpretKeyEvents:[NSArray arrayWithObject:event]];
+            [data.fieldEdit interpretKeyEvents:[NSArray arrayWithObject:event]];
 #if 0
             text = [[event characters] UTF8String];
             if(text && *text) {
@@ -702,7 +580,7 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
         break;
     case NSEventTypeFlagsChanged:
         /* FIXME CW 2007-08-14: check if this whole mess that takes up half of this file is really necessary */
-        HandleModifiers(_this, scancode, [event modifierFlags]);
+        HandleModifiers(_this, scancode, (unsigned int)[event modifierFlags]);
         break;
     default: /* just to avoid compiler warnings */
         break;
@@ -712,7 +590,23 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 void
 Cocoa_QuitKeyboard(_THIS)
 {
-    QuitHIDCallback();
+}
+
+typedef int CGSConnection;
+typedef enum {
+    CGSGlobalHotKeyEnable = 0,
+    CGSGlobalHotKeyDisable = 1,
+} CGSGlobalHotKeyOperatingMode;
+
+extern CGSConnection _CGSDefaultConnection(void);
+extern CGError CGSSetGlobalHotKeyOperatingMode(CGSConnection connection, CGSGlobalHotKeyOperatingMode mode);
+
+void
+Cocoa_SetWindowKeyboardGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
+{
+#if SDL_MAC_NO_SANDBOX
+    CGSSetGlobalHotKeyOperatingMode(_CGSDefaultConnection(), grabbed ? CGSGlobalHotKeyDisable : CGSGlobalHotKeyEnable);
+#endif
 }
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */
