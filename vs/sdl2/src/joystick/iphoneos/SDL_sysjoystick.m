@@ -52,7 +52,9 @@ static id disconnectObserver = nil;
 
 #if !TARGET_OS_TV
 static const char *accelerometerName = "iOS Accelerometer";
-static CMMotionManager *motionManager = nil;
+#if !defined(MACOSX)
+static CMMotionManager *motionManager = nil; // not available on MacOS
+#endif
 #endif /* !TARGET_OS_TV */
 
 static SDL_JoystickDeviceItem *deviceList = NULL;
@@ -405,6 +407,7 @@ IOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
     @autoreleasepool {
         if (device->accelerometer) {
 #if !TARGET_OS_TV
+#if !defined(MACOSX)
             if (motionManager == nil) {
                 motionManager = [[CMMotionManager alloc] init];
             }
@@ -412,6 +415,7 @@ IOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
             /* Shorter times between updates can significantly increase CPU usage. */
             motionManager.accelerometerUpdateInterval = 0.1;
             [motionManager startAccelerometerUpdates];
+#endif /* !defined(MACOSX) */
 #endif /* !TARGET_OS_TV */
         } else {
 #ifdef SDL_JOYSTICK_MFI
@@ -435,6 +439,7 @@ static void
 IOS_AccelerometerUpdate(SDL_Joystick * joystick)
 {
 #if !TARGET_OS_TV
+#if !defined(MACOSX)
     const float maxgforce = SDL_IPHONE_MAX_GFORCE;
     const SInt16 maxsint16 = 0x7FFF;
     CMAcceleration accel;
@@ -472,6 +477,7 @@ IOS_AccelerometerUpdate(SDL_Joystick * joystick)
     SDL_PrivateJoystickAxis(joystick, 0,  (accel.x / maxgforce) * maxsint16);
     SDL_PrivateJoystickAxis(joystick, 1, -(accel.y / maxgforce) * maxsint16);
     SDL_PrivateJoystickAxis(joystick, 2,  (accel.z / maxgforce) * maxsint16);
+#endif /* !defined(MacOSX)
 #endif /* !TARGET_OS_TV */
 }
 
@@ -665,7 +671,9 @@ IOS_JoystickClose(SDL_Joystick * joystick)
     @autoreleasepool {
         if (device->accelerometer) {
 #if !TARGET_OS_TV
+#if !defined(MACOSX)
             [motionManager stopAccelerometerUpdates];
+#endif
 #endif /* !TARGET_OS_TV */
         } else if (device->controller) {
 #ifdef SDL_JOYSTICK_MFI
@@ -708,7 +716,9 @@ IOS_JoystickQuit(void)
         }
 
 #if !TARGET_OS_TV
+#if !defined(MACOSX)
         motionManager = nil;
+#endif
 #endif /* !TARGET_OS_TV */
     }
 
