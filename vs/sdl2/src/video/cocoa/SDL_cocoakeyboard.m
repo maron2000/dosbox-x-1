@@ -92,6 +92,9 @@
     return _selectedRange;
 }
 
+static SDL_bool ime_incompos = 0; // Added for DOSBox-X IME support
+static long end_ticks = 0;        // Added for DOSBox-X IME support
+
 - (void)setMarkedText:(id)aString selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange
 {
     if ([aString isKindOfClass:[NSAttributedString class]]) {
@@ -103,6 +106,7 @@
         return;
     }
 
+    ime_incompos = 1;
     if (_markedText != aString) {
         _markedText = aString;
     }
@@ -115,6 +119,8 @@
 
     DEBUG_IME(@"setMarkedText: %@, (%d, %d)", _markedText,
           selRange.location, selRange.length);
+    ime_incompos = 0;
+    end_ticks = TickCount();
 }
 
 - (void)unmarkText
@@ -122,6 +128,11 @@
     _markedText = nil;
 
     SDL_SendEditingText("", 0, 0);
+}
+
+#define IME_END_CR_WAIT 25
+SDL_bool SDL_IM_Composition(int more) {
+    return ime_incompos||end_ticks&&(TickCount()-end_ticks<IME_END_CR_WAIT*more) ? SDL_TRUE : SDL_FALSE;
 }
 
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange
