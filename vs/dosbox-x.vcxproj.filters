@@ -1599,9 +1599,6 @@
     <ClCompile Include="..\src\hardware\snd_pc98\cbus\pcm86io.c">
       <Filter>Sources\hardware\snd_pc98\cbus</Filter>
     </ClCompile>
-    <ClCompile Include="sdl2\src\stdlib\SDL_crc16.c">
-      <Filter>Includes</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\aviwriter\avi.h">
