@@ -124,7 +124,7 @@ jobs:
           pwd>pwd.txt
           mkdir mingw-get
           vs/tool/unzip.exe $top/build-scripts/mingw/lowend-bin/mingw-get-0.6.2-mingw32-beta-20131004-1-bin.zip -d mingw-get
-          mingw-get/bin/mingw-get.exe install msys-base gcc g++ autoconf automake libiconv libpdcurses libz
+          mingw-get/bin/mingw-get.exe install msys-base gcc g++ autoconf automake libiconv libpdcurses libz coreutils
           mv pwd.txt mingw-get/msys/1.0
           cp build-scripts/mingw/lowend-bin/msys.bat mingw-get/msys/1.0
           cp build-scripts/mingw/lowend-bin/runbuild.sh mingw-get/msys/1.0
