@@ -129,6 +129,8 @@ jobs:
           cp build-scripts/mingw/lowend-bin/msys.bat mingw-get/msys/1.0
           cp build-scripts/mingw/lowend-bin/runbuild.sh mingw-get/msys/1.0
           cp build-scripts/mingw/lowend-bin/gawk.exe mingw-get/msys/1.0/bin
+          cp build-scripts/mingw/lowend-bin/sort.exe mingw-get/msys/1.0/bin
+          cp build-scripts/mingw/lowend-bin/*.dll mingw-get/msys/1.0/bin
           vs/tool/unzip.exe $top/build-scripts/mingw/lowend-bin/d3d9.zip -d d3d9
           cp d3d9/*.inl mingw-get/include
           cp d3d9/*.h mingw-get/include
