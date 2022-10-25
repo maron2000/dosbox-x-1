@@ -32,6 +32,8 @@
 #include <oleauto.h>
 
 #ifndef SDL_DISABLE_WINDOWS_IME
+static Uint32 end_ticks = 0;  //added for DOSBox-X IME support
+static SDL_bool ime_incompos; //added for DOSBox-X IME support
 static void IME_Init(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Enable(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Disable(SDL_VideoData *videodata, HWND hwnd);
@@ -168,6 +170,16 @@ WIN_QuitKeyboard(_THIS)
         SDL_free(data->ime_composition);
         data->ime_composition = NULL;
     }
+}
+
+SDL_bool SDL_IM_Composition(int more) { // Added for DOSBox-X IME support
+    (void)more;
+#ifndef SDL_DISABLE_WINDOWS_IME
+#define IME_END_CR_WAIT 50
+    return ime_incompos || end_ticks && (GetTickCount() - end_ticks < IME_END_CR_WAIT) ? SDL_TRUE : SDL_FALSE;
+#else
+    return SDL_FALSE;
+#endif
 }
 
 void
@@ -418,8 +430,9 @@ IME_Init(SDL_VideoData *videodata, HWND hwnd)
     IME_SetupAPI(videodata);
     if (WIN_ShouldShowNativeUI())
         videodata->ime_uiless = SDL_FALSE;
-    else
-        videodata->ime_uiless = UILess_SetupSinks(videodata);
+    //else
+        // Disabled because the candidate window will not be displayed. (modified for DOSBox-X IME support)
+        // videodata->ime_uiless = UILess_SetupSinks(videodata);
     IME_UpdateInputLocale(videodata);
     IME_Disable(videodata, hwnd);
 }
@@ -1017,17 +1030,22 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
     case WM_INPUTLANGCHANGE:
         IME_InputLangChanged(videodata);
         break;
+    case WM_IME_CHAR:
+        trap = SDL_TRUE; // Added for DOSBox-X IME support
+        break;
     case WM_IME_SETCONTEXT:
-        if (videodata->ime_uiless) {
-            *lParam = 0;
-        }
+        // Disabled because the string being converted will not be displayed. (modified for DOSBox-X IME support)
+        //if (videodata->ime_uiless) {
+        //    *lParam = 0;
+        //}
         break;
     case WM_IME_STARTCOMPOSITION: 
         videodata->ime_suppress_endcomposition_event = SDL_FALSE;
-        trap = SDL_TRUE;
+        //trap = SDL_TRUE; /* modified for DOSBox-X IME support) */
+        ime_incompos = 1;  // added for DOSBox-X IME support
         break;
     case WM_IME_COMPOSITION:
-        trap = SDL_TRUE;
+        // trap = SDL_TRUE; /* modified for DOSBox-X IME support) */
         himc = ImmGetContext(hwnd);
         if (*lParam & GCS_RESULTSTR) {
             videodata->ime_suppress_endcomposition_event = SDL_TRUE;
@@ -1045,6 +1063,8 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
         ImmReleaseContext(hwnd, himc);
         break;
     case WM_IME_ENDCOMPOSITION:
+        end_ticks = GetTickCount();
+        ime_incompos = 0;
         videodata->ime_uicontext = 0;
         videodata->ime_composition[0] = 0;
         videodata->ime_readingstring[0] = 0;
