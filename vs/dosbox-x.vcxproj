@@ -1578,6 +1578,7 @@ for /d %%i in ($(SolutionDir)\..\contrib\translations\*) do copy %%i\*.lng "$(Ou
     <ClCompile Include="..\src\libs\fluidsynth\fluid_ringbuffer.c" />
     <ClCompile Include="..\src\libs\fluidsynth\fluid_settings.c" />
     <ClCompile Include="..\src\libs\fluidsynth\fluid_sys.c" />
+    <ClCompile Include="sdl2\src\stdlib\SDL_crc16.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\winres.rc" />
