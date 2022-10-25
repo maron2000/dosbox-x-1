@@ -52,7 +52,7 @@ static id disconnectObserver = nil;
 
 #if !TARGET_OS_TV
 static const char *accelerometerName = "iOS Accelerometer";
-#if !defined(MACOSX)
+#if !defined(__MACOSX__)
 static CMMotionManager *motionManager = nil; // not available on MacOS
 #endif
 #endif /* !TARGET_OS_TV */
@@ -407,7 +407,7 @@ IOS_JoystickOpen(SDL_Joystick * joystick, int device_index)
     @autoreleasepool {
         if (device->accelerometer) {
 #if !TARGET_OS_TV
-#if !defined(__MACH__)
+#if !defined(__MACOSX__)
             if (motionManager == nil) {
                 motionManager = [[CMMotionManager alloc] init];
             }
@@ -439,7 +439,7 @@ static void
 IOS_AccelerometerUpdate(SDL_Joystick * joystick)
 {
 #if !TARGET_OS_TV
-#if !defined(__MACH__)
+#if !defined(__MACOSX__)
     const float maxgforce = SDL_IPHONE_MAX_GFORCE;
     const SInt16 maxsint16 = 0x7FFF;
     CMAcceleration accel;
@@ -671,7 +671,7 @@ IOS_JoystickClose(SDL_Joystick * joystick)
     @autoreleasepool {
         if (device->accelerometer) {
 #if !TARGET_OS_TV
-#if !defined(__MACH__)
+#if !defined(__MACOSX__)
             [motionManager stopAccelerometerUpdates];
 #endif
 #endif /* !TARGET_OS_TV */
@@ -716,7 +716,7 @@ IOS_JoystickQuit(void)
         }
 
 #if !TARGET_OS_TV
-#if !defined(__MACH__)
+#if !defined(__MACOSX__)
         motionManager = nil;
 #endif
 #endif /* !TARGET_OS_TV */
