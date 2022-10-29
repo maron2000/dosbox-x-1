@@ -18,7 +18,7 @@ jobs:
         shell: msys2 {0}
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.10.1
+        uses: styfle/cancel-workflow-action@0.11.0
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v3
@@ -92,7 +92,7 @@ jobs:
           $top/vs/tool/zip.exe -r -9 $top/dosbox-x-mingw-win64-${{ env.timestamp }}.zip *
           cd $top
       - name: Upload preview package
-        uses: actions/upload-artifact@v3.1.0
+        uses: actions/upload-artifact@v3.1.1
         with:
           name: dosbox-x-mingw-win64-${{ env.timestamp }}
           path: ${{ github.workspace }}/package/
