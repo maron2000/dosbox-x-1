@@ -1039,7 +1039,7 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
         //    *lParam = 0;
         //}
         break;
-    case WM_IME_STARTCOMPOSITION: 
+    case WM_IME_STARTCOMPOSITION:
         videodata->ime_suppress_endcomposition_event = SDL_FALSE;
         //trap = SDL_TRUE; /* modified for DOSBox-X IME support) */
         ime_incompos = 1;  // added for DOSBox-X IME support

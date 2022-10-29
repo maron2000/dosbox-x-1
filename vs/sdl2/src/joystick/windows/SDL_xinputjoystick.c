@@ -452,10 +452,15 @@ UpdateXInputJoystickState_OLD(SDL_Joystick * joystick, XINPUT_STATE_EX *pXInputS
 
     SDL_PrivateJoystickAxis(joystick, 0, (Sint16)pXInputState->Gamepad.sThumbLX);
     SDL_PrivateJoystickAxis(joystick, 1, (Sint16)(-SDL_max(-32767, pXInputState->Gamepad.sThumbLY)));
-    SDL_PrivateJoystickAxis(joystick, 2, (Sint16)pXInputState->Gamepad.sThumbRX);
-    SDL_PrivateJoystickAxis(joystick, 3, (Sint16)(-SDL_max(-32767, pXInputState->Gamepad.sThumbRY)));
-    SDL_PrivateJoystickAxis(joystick, 4, (Sint16)(((int)pXInputState->Gamepad.bLeftTrigger * 65535 / 255) - 32768));
-    SDL_PrivateJoystickAxis(joystick, 5, (Sint16)(((int)pXInputState->Gamepad.bRightTrigger * 65535 / 255) - 32768));
+    //SDL_PrivateJoystickAxis(joystick, 2, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    //SDL_PrivateJoystickAxis(joystick, 3, pXInputState->Gamepad.sThumbRX);
+    //SDL_PrivateJoystickAxis(joystick, 4, ~pXInputState->Gamepad.sThumbRY);
+    //SDL_PrivateJoystickAxis(joystick, 5, ((int)pXInputState->Gamepad.bRightTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 2, pXInputState->Gamepad.sThumbRX);
+    SDL_PrivateJoystickAxis(joystick, 3, ~pXInputState->Gamepad.sThumbRY);
+    SDL_PrivateJoystickAxis(joystick, 4, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 5, ((int)pXInputState->Gamepad.bRightTrigger * 257) - 32768);
+
 
     for (button = 0; button < SDL_arraysize(s_XInputButtons); ++button) {
         SDL_PrivateJoystickButton(joystick, button, (wButtons & s_XInputButtons[button]) ? SDL_PRESSED : SDL_RELEASED);
@@ -479,13 +484,9 @@ UpdateXInputJoystickState(SDL_Joystick * joystick, XINPUT_STATE_EX *pXInputState
 
     SDL_PrivateJoystickAxis(joystick, 0, pXInputState->Gamepad.sThumbLX);
     SDL_PrivateJoystickAxis(joystick, 1, ~pXInputState->Gamepad.sThumbLY);
-    //SDL_PrivateJoystickAxis(joystick, 2, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
-    //SDL_PrivateJoystickAxis(joystick, 3, pXInputState->Gamepad.sThumbRX);
-    //SDL_PrivateJoystickAxis(joystick, 4, ~pXInputState->Gamepad.sThumbRY);
-    //SDL_PrivateJoystickAxis(joystick, 5, ((int)pXInputState->Gamepad.bRightTrigger * 257) - 32768);
-    SDL_PrivateJoystickAxis(joystick, 2, pXInputState->Gamepad.sThumbRX);
-    SDL_PrivateJoystickAxis(joystick, 3, ~pXInputState->Gamepad.sThumbRY);
-    SDL_PrivateJoystickAxis(joystick, 4, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 2, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 3, pXInputState->Gamepad.sThumbRX);
+    SDL_PrivateJoystickAxis(joystick, 4, ~pXInputState->Gamepad.sThumbRY);
     SDL_PrivateJoystickAxis(joystick, 5, ((int)pXInputState->Gamepad.bRightTrigger * 257) - 32768);
 
     for (button = 0; button < SDL_arraysize(s_XInputButtons); ++button) {
