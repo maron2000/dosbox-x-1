@@ -1256,9 +1256,6 @@ Bitu GetKeyCode(SDL_keysym keysym) {
             if(keysym.win32_vk >= 0xa6 && keysym.win32_vk <= 0xb7) return SDLK_UNKNOWN; // Ignore all media keys
 #endif
             switch(keysym.scancode) {
-            case 0x46:  // Scroll Lock
-                // LOG_MSG("Scroll_lock scancode=%x, vk_key=%x", keysym.scancode, keysym.win32_vk);
-                return (keysym.win32_vk == VK_CANCEL ? SDLK_BREAK : SDLK_SCROLLOCK);
             case 0x35:  // SLASH
                 if(keysym.sym != SDLK_KP_DIVIDE) {
                     return SDLK_SLASH; // Various characters are allocated to this key in European keyboards
