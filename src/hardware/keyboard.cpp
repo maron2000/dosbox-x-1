@@ -1554,10 +1554,10 @@ void KEYBOARD_AddKey1(KBD_KEYS keytype,bool pressed) {
     case KBD_scrolllock:
         if (keyb.leftctrl_pressed ^ keyb.rightctrl_pressed) {
             /* exactly one of [leftctrl, rightctrl] is pressed -> Ctrl+BREAK */
-            //KEYBOARD_AddBuffer(0xe0); /* don't need twice? change to keyup only */
-            //KEYBOARD_AddBuffer(70);
-            KEYBOARD_AddBuffer(0xe0);
-            KEYBOARD_AddBuffer(70|0x80);
+            KEYBOARD_AddBuffer(0xe0); 
+            KEYBOARD_AddBuffer(70);
+            //KEYBOARD_AddBuffer(0xe0); /* don't need twice? ignore keyup event */
+            //KEYBOARD_AddBuffer(70|0x80);
             keyb.repeat.key=KBD_NONE;   /* Cancel key repeat */
             keyb.repeat.wait=0;
         } else {
@@ -1618,10 +1618,10 @@ void KEYBOARD_AddKey1(KBD_KEYS keytype,bool pressed) {
             KEYBOARD_AddBuffer(69|0x80);
         } else if (keyb.leftctrl_pressed ^ keyb.rightctrl_pressed) {
             /* exactly one of [leftctrl, rightctrl] is pressed -> Ctrl+BREAK */
-            // KEYBOARD_AddBuffer(0xe0); /* don't need twice? change to keyup only */
-            // KEYBOARD_AddBuffer(70);
-            KEYBOARD_AddBuffer(0xe0);
-            KEYBOARD_AddBuffer(70|0x80);
+            KEYBOARD_AddBuffer(0xe0); 
+            KEYBOARD_AddBuffer(70);
+            // KEYBOARD_AddBuffer(0xe0);    /* don't need twice? ignore keyup event */
+            // KEYBOARD_AddBuffer(70|0x80);
         }
         /* pressing this key also disables any previous key repeat */
         keyb.repeat.key=KBD_NONE;
