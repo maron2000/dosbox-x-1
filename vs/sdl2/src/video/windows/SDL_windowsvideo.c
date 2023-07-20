@@ -222,6 +222,7 @@ WIN_CreateDevice(int devindex)
     return device;
 }
 
+
 VideoBootStrap WINDOWS_bootstrap = {
     "windows", "SDL Windows video driver", WIN_Available, WIN_CreateDevice
 };

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # This is the script buildbot.libsdl.org uses to cross-compile SDL2 from
 #  x86 Linux to Raspberry Pi.

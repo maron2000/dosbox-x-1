@@ -549,13 +549,11 @@ localexit:
     /* *INDENT-ON* */
 }
 
-#ifndef _MSC_VER
 void
 _ftol2_sse()
 {
     _ftol();
 }
-#endif
 
 /* 64-bit math operators for 32-bit systems */
 void

@@ -31,8 +31,6 @@
 #include <oleauto.h>
 
 #ifndef SDL_DISABLE_WINDOWS_IME
-static Uint32 end_ticks = 0;
-static SDL_bool ime_incompos;
 static void IME_Init(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Enable(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Disable(SDL_VideoData *videodata, HWND hwnd);
@@ -156,16 +154,6 @@ WIN_QuitKeyboard(_THIS)
 {
 #ifndef SDL_DISABLE_WINDOWS_IME
     IME_Quit((SDL_VideoData *)_this->driverdata);
-#endif
-}
-
-SDL_bool SDL_IM_Composition(int more) {
-    (void)more;
-#ifndef SDL_DISABLE_WINDOWS_IME
-#define IME_END_CR_WAIT 50
-    return ime_incompos||end_ticks&&(GetTickCount()-end_ticks<IME_END_CR_WAIT) ? SDL_TRUE : SDL_FALSE;
-#else
-    return SDL_FALSE;
 #endif
 }
 
@@ -382,8 +370,7 @@ IME_Init(SDL_VideoData *videodata, HWND hwnd)
     videodata->ime_available = SDL_TRUE;
     IME_UpdateInputLocale(videodata);
     IME_SetupAPI(videodata);
-    // Disabled because the candidate window will not be displayed.
-    //videodata->ime_uiless = UILess_SetupSinks(videodata);
+    videodata->ime_uiless = UILess_SetupSinks(videodata);
     IME_UpdateInputLocale(videodata);
     IME_Disable(videodata, hwnd);
 }
@@ -891,19 +878,14 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
     case WM_INPUTLANGCHANGE:
         IME_InputLangChanged(videodata);
         break;
-    case WM_IME_CHAR:
-        trap = SDL_TRUE;
-        break;
     case WM_IME_SETCONTEXT:
-        // Disabled because the string being converted will not be displayed.
-        //*lParam = 0;
+        *lParam = 0;
         break;
     case WM_IME_STARTCOMPOSITION:
-        ime_incompos = 1;
-        //trap = SDL_TRUE;
+        trap = SDL_TRUE;
         break;
     case WM_IME_COMPOSITION:
-        //trap = SDL_TRUE;
+        trap = SDL_TRUE;
         himc = ImmGetContext(hwnd);
         if (*lParam & GCS_RESULTSTR) {
             IME_GetCompositionString(videodata, himc, GCS_RESULTSTR);
@@ -919,8 +901,6 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
         ImmReleaseContext(hwnd, himc);
         break;
     case WM_IME_ENDCOMPOSITION:
-        end_ticks = GetTickCount();
-        ime_incompos = 0;
         videodata->ime_composition[0] = 0;
         videodata->ime_readingstring[0] = 0;
         videodata->ime_cursor = 0;
