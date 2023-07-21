@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -148,8 +148,6 @@ extern DECLSPEC const char *SDLCALL SDL_GetKeyName(SDL_Keycode key);
  *  \sa SDL_Keycode
  */
 extern DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromName(const char *name);
-
-extern DECLSPEC SDL_bool SDLCALL SDL_IM_Composition(int more); // Added for DOSBox-X
 
 /**
  *  \brief Start accepting Unicode text input events.

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -438,11 +438,15 @@ int SDL_abs(int x)
 #if defined(HAVE_CTYPE_H)
 int SDL_isdigit(int x) { return isdigit(x); }
 int SDL_isspace(int x) { return isspace(x); }
+int SDL_isupper(int x) { return isupper(x); }
+int SDL_islower(int x) { return islower(x); }
 int SDL_toupper(int x) { return toupper(x); }
 int SDL_tolower(int x) { return tolower(x); }
 #else
 int SDL_isdigit(int x) { return ((x) >= '0') && ((x) <= '9'); }
 int SDL_isspace(int x) { return ((x) == ' ') || ((x) == '\t') || ((x) == '\r') || ((x) == '\n') || ((x) == '\f') || ((x) == '\v'); }
+int SDL_isupper(int x) { return ((x) >= 'A') && ((x) <= 'Z'); }
+int SDL_islower(int x) { return ((x) >= 'a') && ((x) <= 'z'); }
 int SDL_toupper(int x) { return ((x) >= 'a') && ((x) <= 'z') ? ('A'+((x)-'a')) : (x); }
 int SDL_tolower(int x) { return ((x) >= 'A') && ((x) <= 'Z') ? ('a'+((x)-'A')) : (x); }
 #endif
@@ -549,13 +553,11 @@ localexit:
     /* *INDENT-ON* */
 }
 
-#ifndef _MSC_VER // Added for DOSBox-X
 void
 _ftol2_sse()
 {
     _ftol();
 }
-#endif
 
 /* 64-bit math operators for 32-bit systems */
 void
