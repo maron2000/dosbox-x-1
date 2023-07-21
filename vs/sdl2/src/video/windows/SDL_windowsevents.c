@@ -677,7 +677,8 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 }
             }
 
-            if (code != SDL_SCANCODE_UNKNOWN) {
+            //if (code != SDL_SCANCODE_UNKNOWN) {
+            if((wParam != VK_PROCESSKEY || (lParam >> 16) == 0x39) && code != SDL_SCANCODE_UNKNOWN) {
                 SDL_SendKeyboardKey(SDL_PRESSED, code);
             }
         }
