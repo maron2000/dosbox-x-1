@@ -215,6 +215,8 @@ extern DECLSPEC const char *SDLCALL SDL_GetKeyName(SDL_Keycode key);
  */
 extern DECLSPEC SDL_Keycode SDLCALL SDL_GetKeyFromName(const char *name);
 
+extern DECLSPEC SDL_bool SDLCALL SDL_IM_Composition(int more); // Added for DOSBox-X
+
 /**
  * Start accepting Unicode text input events.
  *

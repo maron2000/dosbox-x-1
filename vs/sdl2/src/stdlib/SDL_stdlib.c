@@ -550,7 +550,7 @@ __declspec(selectany) int _fltused = 1;
 #endif
 
 /* The optimizer on Visual Studio 2005 and later generates memcpy() and memset() calls */
-#if _MSC_VER >= 1400
+#if 0 //_MSC_VER >= 1400
 extern void *memcpy(void* dst, const void* src, size_t len);
 #pragma intrinsic(memcpy)
 
