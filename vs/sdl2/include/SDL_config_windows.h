@@ -223,6 +223,9 @@ typedef unsigned int uintptr_t;
 #define SDL_VIDEO_RENDER_D3D11  0
 #endif
 
+#if defined(__WIN32__) && (defined(__arm__) || defined(__arm64__) || defined(_M_ARM) || defined(_M_ARM64))
+/* Don't enable for DOSBox-X on Windows ARM */
+#else
 /* Enable OpenGL support */
 #ifndef SDL_VIDEO_OPENGL
 #define SDL_VIDEO_OPENGL    1
@@ -242,6 +245,7 @@ typedef unsigned int uintptr_t;
 #ifndef SDL_VIDEO_OPENGL_EGL
 #define SDL_VIDEO_OPENGL_EGL    1
 #endif
+#endif // not defined Windows ARM
 
 /* Enable Vulkan support */
 #define SDL_VIDEO_VULKAN 1
