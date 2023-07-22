@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -109,12 +109,6 @@
 #define main    SDL_main
 #endif
 
-#ifdef __cplusplus
-#define SDL_MAIN_NOEXCEPT noexcept(false) // Added for DOSBox-X
-#else
-#define SDL_MAIN_NOEXCEPT // Added for DOSBox-X
-#endif
-
 #include "begin_code.h"
 #ifdef __cplusplus
 extern "C" {
@@ -124,22 +118,26 @@ extern "C" {
  *  The prototype for the application's main() function
  */
 typedef int (*SDL_main_func)(int argc, char *argv[]);
-//extern SDLMAIN_DECLSPEC int SDL_main(int argc, char *argv[]);
-extern SDLMAIN_DECLSPEC int SDL_main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT; // Changed for DOSBox-X
+extern SDLMAIN_DECLSPEC int SDL_main(int argc, char *argv[]);
+
 
 /**
- *  This is called by the real SDL main function to let the rest of the
- *  library know that initialization was done properly.
+ * Circumvent failure of SDL_Init() when not using SDL_main() as an entry
+ * point.
  *
- *  Calling this yourself without knowing what you're doing can cause
- *  crashes and hard to diagnose problems with your application.
+ * This function is defined in SDL_main.h, along with the preprocessor rule to
+ * redefine main() as SDL_main(). Thus to ensure that your main() function
+ * will not be changed it is necessary to define SDL_MAIN_HANDLED before
+ * including SDL.h.
+ *
+ * \sa SDL_Init
  */
 extern DECLSPEC void SDLCALL SDL_SetMainReady(void);
 
 #ifdef __WIN32__
 
 /**
- *  This can be called to set the application class at startup
+ * This can be called to set the application class at startup
  */
 extern DECLSPEC int SDLCALL SDL_RegisterApp(char *name, Uint32 style, void *hInst);
 extern DECLSPEC void SDLCALL SDL_UnregisterApp(void);
@@ -150,12 +148,14 @@ extern DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 #ifdef __WINRT__
 
 /**
- *  \brief Initializes and launches an SDL/WinRT application.
+ * Initialize and launch an SDL/WinRT application.
  *
- *  \param mainFunction The SDL app's C-style main().
- *  \param reserved Reserved for future use; should be NULL
- *  \return 0 on success, -1 on failure.  On failure, use SDL_GetError to retrieve more
- *      information on the failure.
+ * \param mainFunction the SDL app's C-style main(), an SDL_main_func
+ * \param reserved reserved for future use; should be NULL
+ * \returns 0 on success or -1 on failure; call SDL_GetError() to retrieve
+ *          more information on the failure.
+ *
+ * \since This function is available since SDL 2.0.3.
  */
 extern DECLSPEC int SDLCALL SDL_WinRTRunApp(SDL_main_func mainFunction, void * reserved);
 
@@ -164,12 +164,12 @@ extern DECLSPEC int SDLCALL SDL_WinRTRunApp(SDL_main_func mainFunction, void * r
 #if defined(__IPHONEOS__)
 
 /**
- *  \brief Initializes and launches an SDL application.
+ * Initializes and launches an SDL application.
  *
- *  \param argc The argc parameter from the application's main() function
- *  \param argv The argv parameter from the application's main() function
- *  \param mainFunction The SDL app's C-style main().
- *  \return the return value from mainFunction
+ * \param argc The argc parameter from the application's main() function
+ * \param argv The argv parameter from the application's main() function
+ * \param mainFunction The SDL app's C-style main(), an SDL_main_func
+ * \return the return value from mainFunction
  */
 extern DECLSPEC int SDLCALL SDL_UIKitRunApp(int argc, char *argv[], SDL_main_func mainFunction);
 
