@@ -206,6 +206,8 @@ extern DECLSPEC SDL_bool SDLCALL SDL_HasScreenKeyboardSupport(void);
  */
 extern DECLSPEC SDL_bool SDLCALL SDL_IsScreenKeyboardShown(SDL_Window *window);
 
+extern DECLSPEC SDL_bool SDLCALL SDL_IM_Composition(int more); // Added for DOSBox-X
+
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
 }
