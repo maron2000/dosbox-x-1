@@ -32,6 +32,8 @@
 #include <oleauto.h>
 
 #ifndef SDL_DISABLE_WINDOWS_IME
+static Uint32 end_ticks = 0;  // added for DOSBox-X
+static SDL_bool ime_incompos; // added for DOSBox-X
 static void IME_Init(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Enable(SDL_VideoData *videodata, HWND hwnd);
 static void IME_Disable(SDL_VideoData *videodata, HWND hwnd);
@@ -163,6 +165,19 @@ WIN_QuitKeyboard(_THIS)
 #endif
 }
 
+#if 1 // Added for DOSBox-X
+SDL_bool SDL_IM_Composition(int more) {
+    (void)more;
+#ifndef SDL_DISABLE_WINDOWS_IME
+#define IME_END_CR_WAIT 50
+    return ime_incompos || end_ticks && (GetTickCount() - end_ticks < IME_END_CR_WAIT) ? SDL_TRUE : SDL_FALSE;
+#else
+    return SDL_FALSE;
+#endif
+}
+#endif
+
+
 void
 WIN_ResetDeadKeys()
 {
@@ -250,6 +265,12 @@ WIN_SetTextInputRect(_THIS, SDL_Rect *rect)
     himc = ImmGetContext(videodata->ime_hwnd_current);
     if (himc)
     {
+        COMPOSITIONFORM cf;
+        cf.ptCurrentPos.x = videodata->ime_rect.x;
+        cf.ptCurrentPos.y = videodata->ime_rect.y;
+        cf.dwStyle = CFS_FORCE_POSITION;
+        ImmSetCompositionWindow(himc, &cf);
+        /*
         COMPOSITIONFORM cof;
         CANDIDATEFORM caf;
 
@@ -271,7 +292,7 @@ WIN_SetTextInputRect(_THIS, SDL_Rect *rect)
         caf.rcArea.top = videodata->ime_rect.y;
         caf.rcArea.bottom = videodata->ime_rect.y + videodata->ime_rect.h;
         ImmSetCandidateWindow(himc, &caf);
-
+*/
         ImmReleaseContext(videodata->ime_hwnd_current, himc);
     }
 }
@@ -409,10 +430,14 @@ IME_Init(SDL_VideoData *videodata, HWND hwnd)
     videodata->ime_available = SDL_TRUE;
     IME_UpdateInputLocale(videodata);
     IME_SetupAPI(videodata);
-    if (WIN_ShouldShowNativeUI())
+    // Disabled because the candidate window will not be displayed. (for DOSBox-X)
+    /*
+    if(WIN_ShouldShowNativeUI())
         videodata->ime_uiless = SDL_FALSE;
     else
         videodata->ime_uiless = UILess_SetupSinks(videodata);
+    */
+
     IME_UpdateInputLocale(videodata);
     IME_Disable(videodata, hwnd);
 }
@@ -1010,17 +1035,37 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
     case WM_INPUTLANGCHANGE:
         IME_InputLangChanged(videodata);
         break;
+#if 1 // added for DOSBox-X
+    case WM_IME_CHAR:
+        if(wParam == 0x20) {
+            // enable IME input space
+            PostMessage(hwnd, WM_KEYDOWN, 0x20, 0x390001);
+        }
+        else if(wParam == 0x3000) {
+            // input Zenkaku space
+            videodata->ime_composition[0] = 0x3000;
+            videodata->ime_composition[1] = 0;
+            IME_SendEditingEvent(videodata);
+            IME_SendInputEvent(videodata);
+        }
+        trap = SDL_TRUE;
+        break;
+#endif
     case WM_IME_SETCONTEXT:
-        if (videodata->ime_uiless) {
+        // Disabled because the string being converted will not be displayed. (for DOSBox-X)
+        /*
+        if(videodata->ime_uiless) {
             *lParam = 0;
         }
+        */
         break;
     case WM_IME_STARTCOMPOSITION: 
         videodata->ime_suppress_endcomposition_event = SDL_FALSE;
-        trap = SDL_TRUE;
+        ime_incompos = 1;  /* added for DOSBox-X */
+        //trap = SDL_TRUE; /* disabled for DOSBox-X */
         break;
     case WM_IME_COMPOSITION:
-        trap = SDL_TRUE;
+        //trap = SDL_TRUE; /* disabled for DOSBox-X */
         himc = ImmGetContext(hwnd);
         if (*lParam & GCS_RESULTSTR) {
             videodata->ime_suppress_endcomposition_event = SDL_TRUE;
@@ -1038,6 +1083,8 @@ IME_HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM *lParam, SDL_VideoD
         ImmReleaseContext(hwnd, himc);
         break;
     case WM_IME_ENDCOMPOSITION:
+        end_ticks = GetTickCount(); /* added for DOSBox-X */
+        ime_incompos = 0; /* added for DOSBox-X */
         videodata->ime_uicontext = 0;
         videodata->ime_composition[0] = 0;
         videodata->ime_readingstring[0] = 0;
