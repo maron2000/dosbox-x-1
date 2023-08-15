@@ -1800,7 +1800,7 @@ elseif(APPLE)
       set(SDL_FRAMEWORK_COREHAPTICS 1)
       set(HAVE_SDL_SENSORS 1)
     else()
-      file(GLOB JOYSTICK_SOURCES ${SDL2_SOURCE_DIR}/src/joystick/darwin/*.c ${SDL2_SOURCE_DIR}/src/joystick/iphoneos/*.m)
+      file(GLOB JOYSTICK_SOURCES ${SDL2_SOURCE_DIR}/src/joystick/darwin/*.c)
       # FIXME: add checks for SDL_JOYSTICK_MFI???
       set(SDL_JOYSTICK_IOKIT 1)
       set(SDL_FRAMEWORK_IOKIT 1)
