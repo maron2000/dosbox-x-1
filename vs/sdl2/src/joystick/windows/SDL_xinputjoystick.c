@@ -201,9 +201,20 @@ GuessXInputDevice(Uint8 userid, Uint16 *pVID, Uint16 *pPID, Uint16 *pVersion)
                  * userid, but we'll record it so we'll at least be consistent
                  * when the raw device list changes.
                  */
-                *pVID = (Uint16)rdi.hid.dwVendorId;
-                *pPID = (Uint16)rdi.hid.dwProductId;
-                *pVersion = (Uint16)rdi.hid.dwVersionNumber;
+                if (rdi.hid.dwVendorId == USB_VENDOR_VALVE &&
+                    rdi.hid.dwProductId == USB_PRODUCT_STEAM_VIRTUAL_GAMEPAD) {
+                    /* Steam encodes the real device in the path */
+                    int realVID = rdi.hid.dwVendorId;
+                    int realPID = rdi.hid.dwProductId;
+                    SDL_sscanf(devName, "\\\\.\\pipe\\HID#VID_045E&PID_028E&IG_00#%x&%x&", &realVID, &realPID);
+                    *pVID = (Uint16)realVID;
+                    *pPID = (Uint16)realPID;
+                    *pVersion = 0;
+                } else {
+                    *pVID = (Uint16)rdi.hid.dwVendorId;
+                    *pPID = (Uint16)rdi.hid.dwProductId;
+                    *pVersion = (Uint16)rdi.hid.dwVersionNumber;
+                }
                 if (s_arrXInputDevicePath[userid]) {
                     SDL_free(s_arrXInputDevicePath[userid]);
                 }
@@ -460,13 +471,9 @@ UpdateXInputJoystickState(SDL_Joystick * joystick, XINPUT_STATE_EX *pXInputState
 
     SDL_PrivateJoystickAxis(joystick, 0, pXInputState->Gamepad.sThumbLX);
     SDL_PrivateJoystickAxis(joystick, 1, ~pXInputState->Gamepad.sThumbLY);
-    //SDL_PrivateJoystickAxis(joystick, 2, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
-    //SDL_PrivateJoystickAxis(joystick, 3, pXInputState->Gamepad.sThumbRX);
-    //SDL_PrivateJoystickAxis(joystick, 4, ~pXInputState->Gamepad.sThumbRY);
-    // Fixes for DOSBox-X
-    SDL_PrivateJoystickAxis(joystick, 2, pXInputState->Gamepad.sThumbRX);
-    SDL_PrivateJoystickAxis(joystick, 3, ~pXInputState->Gamepad.sThumbRY);
-    SDL_PrivateJoystickAxis(joystick, 4, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 2, ((int)pXInputState->Gamepad.bLeftTrigger * 257) - 32768);
+    SDL_PrivateJoystickAxis(joystick, 3, pXInputState->Gamepad.sThumbRX);
+    SDL_PrivateJoystickAxis(joystick, 4, ~pXInputState->Gamepad.sThumbRY);
     SDL_PrivateJoystickAxis(joystick, 5, ((int)pXInputState->Gamepad.bRightTrigger * 257) - 32768);
 
     for (button = 0; button < SDL_arraysize(s_XInputButtons); ++button) {
