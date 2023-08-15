@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -52,22 +52,22 @@ SDL_atanf(float x)
 }
 
 double
-SDL_atan2(double x, double y)
+SDL_atan2(double y, double x)
 {
 #if defined(HAVE_ATAN2)
-    return atan2(x, y);
+    return atan2(y, x);
 #else
-    return SDL_uclibc_atan2(x, y);
+    return SDL_uclibc_atan2(y, x);
 #endif
 }
 
 float
-SDL_atan2f(float x, float y)
+SDL_atan2f(float y, float x)
 {
 #if defined(HAVE_ATAN2F)
-    return atan2f(x, y);
+    return atan2f(y, x);
 #else
-    return (float)SDL_atan2((double)x, (double)y);
+    return (float)SDL_atan2((double)y, (double)x);
 #endif
 }
 
@@ -444,7 +444,7 @@ SDL_sin(double x)
 #endif
 }
 
-float 
+float
 SDL_sinf(float x)
 {
 #if defined(HAVE_SINF)
@@ -499,7 +499,7 @@ int SDL_abs(int x)
 #if defined(HAVE_ABS)
     return abs(x);
 #else
-    return ((x) < 0 ? -(x) : (x));
+    return (x < 0) ? -x : x;
 #endif
 }
 
@@ -550,7 +550,7 @@ __declspec(selectany) int _fltused = 1;
 #endif
 
 /* The optimizer on Visual Studio 2005 and later generates memcpy() and memset() calls */
-#if 0 //_MSC_VER >= 1400
+#if _MSC_VER >= 1400
 extern void *memcpy(void* dst, const void* src, size_t len);
 #pragma intrinsic(memcpy)
 
@@ -626,13 +626,11 @@ localexit:
     /* *INDENT-ON* */
 }
 
-#ifndef _MSC_VER // Added for DOSBox-X
 void
 _ftol2_sse()
 {
     _ftol();
 }
-#endif
 
 /* 64-bit math operators for 32-bit systems */
 void
