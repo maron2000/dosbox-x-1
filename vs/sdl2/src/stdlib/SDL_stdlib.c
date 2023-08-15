@@ -550,7 +550,8 @@ __declspec(selectany) int _fltused = 1;
 #endif
 
 /* The optimizer on Visual Studio 2005 and later generates memcpy() and memset() calls */
-#if _MSC_VER >= 1400
+//#if _MSC_VER >= 1400
+#if 0
 extern void *memcpy(void* dst, const void* src, size_t len);
 #pragma intrinsic(memcpy)
 
@@ -626,11 +627,13 @@ localexit:
     /* *INDENT-ON* */
 }
 
+#ifndef _MSC_VER
 void
 _ftol2_sse()
 {
     _ftol();
 }
+#endif
 
 /* 64-bit math operators for 32-bit systems */
 void
