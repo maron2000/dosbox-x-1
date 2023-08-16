@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -36,9 +36,6 @@
 extern "C" {
 #endif
 
-/* This is the DOSBox-X's modified SDL 2.x with IME support, not the general library */
-#define SDL_DOSBOX_X_IME 1
-
 /**
  * Information about the version of SDL in use.
  *
@@ -61,7 +58,7 @@ typedef struct SDL_version
 /* Printable format: "%d.%d.%d", MAJOR, MINOR, PATCHLEVEL
 */
 #define SDL_MAJOR_VERSION   2
-#define SDL_MINOR_VERSION   24
+#define SDL_MINOR_VERSION   28
 #define SDL_PATCHLEVEL      2
 
 /**

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -399,12 +399,9 @@ static void OS2_JoystickSetDevicePlayerIndex(int device_index, int player_index)
 
 static SDL_JoystickGUID OS2_JoystickGetDeviceGUID(int device_index)
 {
-	SDL_JoystickGUID guid;
-	/* the GUID is just the first 16 chars of the name for now */
-	const char *name = OS2_JoystickGetDeviceName(device_index);
-	SDL_zero(guid);
-	SDL_memcpy(&guid, name, SDL_min(sizeof(guid), SDL_strlen(name)));
-	return guid;
+    /* the GUID is just the name for now */
+    const char *name = OS2_JoystickGetDeviceName(device_index);
+    return SDL_CreateJoystickGUIDForName(name);
 }
 
 static SDL_JoystickID OS2_JoystickGetDeviceInstanceID(int device_index)
@@ -705,10 +702,14 @@ static int joyGetEnv(struct _joycfg * joydata)
 	char tempnumber[5];		/* Temporary place to put numeric texts */
 
 	joyenv = SDL_getenv("SDL_OS2_JOYSTICK");
-	if (joyenv == NULL) return 0;
+	if (joyenv == NULL) {
+		return 0;
+	}
 
 	/* Joystick Environment is defined! */
-	while (*joyenv == ' ' && *joyenv != 0) joyenv++; /* jump spaces... */
+	while (*joyenv == ' ' && *joyenv != 0) {
+		joyenv++; /* jump spaces... */
+	}
 
 	/* If the string name starts with '... get if fully */
 	if (*joyenv == '\'') {
