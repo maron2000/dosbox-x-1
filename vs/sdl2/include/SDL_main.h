@@ -51,6 +51,15 @@
 */
 #define SDL_MAIN_NEEDED
 
+#elif defined(__GDK__)
+/* On GDK, SDL provides a main function that initializes the game runtime.
+
+   Please note that #include'ing SDL_main.h is not enough to get a main()
+   function working. You must either link against SDL2main or, if not possible,
+   call the SDL_GDKRunApp function from your entry point.
+*/
+#define SDL_MAIN_NEEDED
+
 #elif defined(__IPHONEOS__)
 /* On iOS SDL provides a main function that creates an application delegate
    and starts the iOS application run loop.
@@ -92,6 +101,13 @@
  */
 #define SDL_MAIN_AVAILABLE
 
+#elif defined(__PS2__)
+#define SDL_MAIN_AVAILABLE
+
+#define SDL_PS2_SKIP_IOP_RESET() \
+   void reset_IOP(); \
+   void reset_IOP() {}
+
 #endif
 #endif /* SDL_MAIN_HANDLED */
 
@@ -118,12 +134,6 @@
 #define main    SDL_main
 #endif
 
-#ifdef __cplusplus
-#define SDL_MAIN_NOEXCEPT noexcept(false) // Added for DOSBox-X
-#else
-#define SDL_MAIN_NOEXCEPT // Added for DOSBox-X
-#endif
-
 #include "begin_code.h"
 #ifdef __cplusplus
 extern "C" {
@@ -133,7 +143,7 @@ extern "C" {
  *  The prototype for the application's main() function
  */
 typedef int (*SDL_main_func)(int argc, char *argv[]);
-extern SDLMAIN_DECLSPEC int SDL_main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT; // Changed for DOSBox-X
+extern SDLMAIN_DECLSPEC int SDL_main(int argc, char *argv[]);
 
 
 /**
@@ -151,7 +161,7 @@ extern SDLMAIN_DECLSPEC int SDL_main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT; 
  */
 extern DECLSPEC void SDLCALL SDL_SetMainReady(void);
 
-#ifdef __WIN32__
+#if defined(__WIN32__) || defined(__GDK__)
 
 /**
  * Register a win32 window class for SDL's use.
@@ -195,7 +205,7 @@ extern DECLSPEC int SDLCALL SDL_RegisterApp(const char *name, Uint32 style, void
  */
 extern DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 
-#endif /* __WIN32__ */
+#endif /* defined(__WIN32__) || defined(__GDK__) */
 
 
 #ifdef __WINRT__
@@ -230,6 +240,21 @@ extern DECLSPEC int SDLCALL SDL_UIKitRunApp(int argc, char *argv[], SDL_main_fun
 
 #endif /* __IPHONEOS__ */
 
+#ifdef __GDK__
+
+/**
+ * Initialize and launch an SDL GDK application.
+ *
+ * \param mainFunction the SDL app's C-style main(), an SDL_main_func
+ * \param reserved reserved for future use; should be NULL
+ * \returns 0 on success or -1 on failure; call SDL_GetError() to retrieve
+ *          more information on the failure.
+ *
+ * \since This function is available since SDL 2.24.0.
+ */
+extern DECLSPEC int SDLCALL SDL_GDKRunApp(SDL_main_func mainFunction, void *reserved);
+
+#endif /* __GDK__ */
 
 #ifdef __cplusplus
 }

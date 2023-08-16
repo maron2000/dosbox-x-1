@@ -33,37 +33,19 @@
 /*#define DEBUG_IME NSLog */
 #define DEBUG_IME(...)
 
-#if 1 // inserted for DOSBox-X
-@interface IMETextView : NSView
-@property (nonatomic, copy) NSAttributedString *text;
-@end
-
-@implementation IMETextView
-- (void)drawRect:(NSRect)dirtyRect
-{
-    [super drawRect:dirtyRect];
-    CGSize size = [_text size];
-    [[NSColor whiteColor] set];
-    NSRectFill(dirtyRect);
-    [_text drawInRect:CGRectMake(0, 0, size.width, size.height)];
-}
-@end
-#endif
-
 @interface SDLTranslatorResponder : NSView <NSTextInputClient> {
     NSString *_markedText;
     NSRange   _markedRange;
     NSRange   _selectedRange;
     SDL_Rect  _inputRect;
-    IMETextView *_markedLabel; // inserted for DOSBox-X
 }
 - (void)doCommandBySelector:(SEL)myselector;
-- (void)setInputRect:(SDL_Rect *)rect;
+- (void)setInputRect:(const SDL_Rect *)rect;
 @end
 
 @implementation SDLTranslatorResponder
 
-- (void)setInputRect:(SDL_Rect *)rect
+- (void)setInputRect:(const SDL_Rect *)rect
 {
     _inputRect = *rect;
 }
@@ -85,8 +67,6 @@
     }
 
     SDL_SendKeyboardText(str);
-    [_markedLabel setHidden:YES];  // inserted for DOSBox-X
-    _markedLabel.text = nil;       // inserted for DOSBox-X
 }
 
 - (void)doCommandBySelector:(SEL)myselector
@@ -112,20 +92,9 @@
     return _selectedRange;
 }
 
-static SDL_bool ime_incompos = 0; // inserted for DOSBox-X
-static long end_ticks = 0;        // inserted for DOSBox-X
-
 - (void)setMarkedText:(id)aString selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange
 {
     if ([aString isKindOfClass:[NSAttributedString class]]) {
-#if 1 // inserted for DOSBox-X
-        [aString addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:_inputRect.h] range:NSMakeRange(0, [aString length])];
-        _markedLabel.text = aString;
-        CGSize size = [aString size];
-        [_markedLabel setFrameSize:size];
-        [_markedLabel setHidden:NO];
-        [_markedLabel setNeedsDisplay:YES];
-#endif
         aString = [aString string];
     }
 
@@ -134,10 +103,8 @@ static long end_ticks = 0;        // inserted for DOSBox-X
         return;
     }
 
-    ime_incompos = 1; // inserted for DOSBox-X
     if (_markedText != aString) {
-        [_markedText release];
-        _markedText = [aString retain];
+        _markedText = aString;
     }
 
     _selectedRange = selectedRange;
@@ -148,49 +115,22 @@ static long end_ticks = 0;        // inserted for DOSBox-X
 
     DEBUG_IME(@"setMarkedText: %@, (%d, %d)", _markedText,
           selRange.location, selRange.length);
-    ime_incompos = 0;        //inserted for DOSBox-X
-    end_ticks = TickCount(); //inserted for DOSBox-X
 }
 
 - (void)unmarkText
 {
-    [_markedText release];
     _markedText = nil;
-    [_markedLabel setHidden:YES]; // inserted for DOSBox-X
+
     SDL_SendEditingText("", 0, 0);
 }
-
-#if 1 // inserted for DOSBox-X
-#define IME_END_CR_WAIT 25
-SDL_bool SDL_IM_Composition(int more) {
-    return ime_incompos||(end_ticks&&(TickCount()-end_ticks<IME_END_CR_WAIT*more)) ? SDL_TRUE : SDL_FALSE;
-}
-
-static int GetEnableIME()
-{
-    TISInputSourceRef is = TISCopyCurrentKeyboardInputSource();
-    CFBooleanRef ret = (CFBooleanRef)TISGetInputSourceProperty(is, kTISPropertyInputSourceIsASCIICapable);
-    return CFBooleanGetValue(ret) ? 0 : 1;
-}
-
-- (void)keyboardInputSourceChanged:(NSNotification *)notification
-{
-    if(!GetEnableIME()) {
-        [_markedLabel setHidden:YES];
-        [[NSTextInputContext currentInputContext] discardMarkedText];
-    }
-}
-#endif
 
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange
 {
     NSWindow *window = [self window];
     NSRect contentRect = [window contentRectForFrameRect:[window frame]];
     float windowHeight = contentRect.size.height;
-    //NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y - _inputRect.h,
-    //                         _inputRect.w, _inputRect.h);
-    NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y,
-                             _inputRect.w, 0); // Fixed for DOSBox-X
+    NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y - _inputRect.h,
+                             _inputRect.w, _inputRect.h);
 
     if (actualRange) {
         *actualRange = aRange;
@@ -200,26 +140,7 @@ static int GetEnableIME()
             aRange.location, aRange.length, windowHeight,
             NSStringFromRect(rect));
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
-    if (![window respondsToSelector:@selector(convertRectToScreen:)]) {
-        rect.origin = [window convertBaseToScreen:rect.origin];
-    } else
-#endif
-    {
-        rect = [window convertRectToScreen:rect];
-    }
-
-#if 1 // inserted for DOSBox-X
-if(!_markedLabel) {
-	_markedLabel = [[IMETextView alloc] initWithFrame: NSMakeRect(0.0, 0.0, 0.0, 0.0)];
-	[[[self window] contentView] addSubview:_markedLabel];
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                         selector:@selector(keyboardInputSourceChanged:)
-                                         name:NSTextInputContextKeyboardSelectionDidChangeNotification
-                                         object:nil];
-}
-[_markedLabel setFrameOrigin: NSMakePoint(_inputRect.x, windowHeight - _inputRect.y)];
-#endif
+    rect = [window convertRectToScreen:rect];
 
     return rect;
 }
@@ -451,14 +372,14 @@ DoSidedModifiers(unsigned short scancode,
 static void
 HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
-    if (modifierFlags == data->modifierFlags) {
+    if (modifierFlags == data.modifierFlags) {
         return;
     }
 
-    DoSidedModifiers(scancode, data->modifierFlags, modifierFlags);
-    data->modifierFlags = modifierFlags;
+    DoSidedModifiers(scancode, data.modifierFlags, modifierFlags);
+    data.modifierFlags = modifierFlags;
 }
 
 static void
@@ -469,18 +390,19 @@ UpdateKeymap(SDL_VideoData *data, SDL_bool send_event)
     int i;
     SDL_Scancode scancode;
     SDL_Keycode keymap[SDL_NUM_SCANCODES];
+    CFDataRef uchrDataRef;
 
     /* See if the keymap needs to be updated */
     key_layout = TISCopyCurrentKeyboardLayoutInputSource();
-    if (key_layout == data->key_layout) {
+    if (key_layout == data.key_layout) {
         return;
     }
-    data->key_layout = key_layout;
+    data.key_layout = key_layout;
 
     SDL_GetDefaultKeymap(keymap);
 
     /* Try Unicode data first */
-    CFDataRef uchrDataRef = TISGetInputSourceProperty(key_layout, kTISPropertyUnicodeKeyLayoutData);
+    uchrDataRef = TISGetInputSourceProperty(key_layout, kTISPropertyUnicodeKeyLayoutData);
     if (uchrDataRef) {
         chr_data = CFDataGetBytePtr(uchrDataRef);
     } else {
@@ -517,10 +439,7 @@ UpdateKeymap(SDL_VideoData *data, SDL_bool send_event)
                 keymap[scancode] = s[0];
             }
         }
-        SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES);
-        if (send_event) {
-            SDL_SendKeymapChangedEvent();
-        }
+        SDL_SetKeymap(0, keymap, SDL_NUM_SCANCODES, send_event);
         return;
     }
 
@@ -531,7 +450,7 @@ cleanup:
 void
 Cocoa_InitKeyboard(_THIS)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
     UpdateKeymap(data, SDL_FALSE);
 
@@ -543,38 +462,39 @@ Cocoa_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_RALT, "Right Option");
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
 
-    data->modifierFlags = (unsigned int)[NSEvent modifierFlags];
-    SDL_ToggleModState(KMOD_CAPS, (data->modifierFlags & NSEventModifierFlagCapsLock) != 0);
+    data.modifierFlags = (unsigned int)[NSEvent modifierFlags];
+    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) != 0);
 }
 
 void
 Cocoa_StartTextInput(_THIS)
 { @autoreleasepool
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    NSView *parentView;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
     SDL_Window *window = SDL_GetKeyboardFocus();
     NSWindow *nswindow = nil;
     if (window) {
-        nswindow = ((SDL_WindowData*)window->driverdata)->nswindow;
+        nswindow = ((__bridge SDL_WindowData*)window->driverdata).nswindow;
     }
 
-    NSView *parentView = [nswindow contentView];
+    parentView = [nswindow contentView];
 
     /* We only keep one field editor per process, since only the front most
      * window can receive text input events, so it make no sense to keep more
      * than one copy. When we switched to another window and requesting for
      * text input, simply remove the field editor from its superview then add
      * it to the front most window's content view */
-    if (!data->fieldEdit) {
-        data->fieldEdit =
+    if (!data.fieldEdit) {
+        data.fieldEdit =
             [[SDLTranslatorResponder alloc] initWithFrame: NSMakeRect(0.0, 0.0, 0.0, 0.0)];
     }
 
-    if (![[data->fieldEdit superview] isEqual:parentView]) {
+    if (![[data.fieldEdit superview] isEqual:parentView]) {
         /* DEBUG_IME(@"add fieldEdit to window contentView"); */
-        [data->fieldEdit removeFromSuperview];
-        [parentView addSubview: data->fieldEdit];
-        [nswindow makeFirstResponder: data->fieldEdit];
+        [data.fieldEdit removeFromSuperview];
+        [parentView addSubview: data.fieldEdit];
+        [nswindow makeFirstResponder: data.fieldEdit];
     }
 }}
 
@@ -582,38 +502,38 @@ void
 Cocoa_StopTextInput(_THIS)
 { @autoreleasepool
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
-    if (data && data->fieldEdit) {
-        [data->fieldEdit removeFromSuperview];
-        [data->fieldEdit release];
-        data->fieldEdit = nil;
+    if (data && data.fieldEdit) {
+        [data.fieldEdit removeFromSuperview];
+        data.fieldEdit = nil;
     }
 }}
 
 void
-Cocoa_SetTextInputRect(_THIS, SDL_Rect *rect)
+Cocoa_SetTextInputRect(_THIS, const SDL_Rect *rect)
 {
-    SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
+    SDL_VideoData *data = (__bridge SDL_VideoData *) _this->driverdata;
 
     if (!rect) {
         SDL_InvalidParamError("rect");
         return;
     }
 
-    [data->fieldEdit setInputRect:rect];
+    [data.fieldEdit setInputRect:rect];
 }
 
 void
 Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 {
-    SDL_VideoData *data = _this ? ((SDL_VideoData *) _this->driverdata) : NULL;
+    unsigned short scancode;
+    SDL_Scancode code;
+    SDL_VideoData *data = _this ? ((__bridge SDL_VideoData *) _this->driverdata) : nil;
     if (!data) {
         return;  /* can happen when returning from fullscreen Space on shutdown */
     }
 
-    unsigned short scancode = [event keyCode];
-    SDL_Scancode code;
+    scancode = [event keyCode];
 #if 0
     const char *text;
 #endif
@@ -645,7 +565,7 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 #endif
         if (SDL_EventState(SDL_TEXTINPUT, SDL_QUERY)) {
             /* FIXME CW 2007-08-16: only send those events to the field editor for which we actually want text events, not e.g. esc or function keys. Arrow keys in particular seem to produce crashes sometimes. */
-            [data->fieldEdit interpretKeyEvents:[NSArray arrayWithObject:event]];
+            [data.fieldEdit interpretKeyEvents:[NSArray arrayWithObject:event]];
 #if 0
             text = [[event characters] UTF8String];
             if(text && *text) {
