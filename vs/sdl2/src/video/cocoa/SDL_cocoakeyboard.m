@@ -33,22 +33,22 @@
 /*#define DEBUG_IME NSLog */
 #define DEBUG_IME(...)
 
-+#if 1 // inserted for DOSBox-X
-+@interface IMETextView : NSView
-+@property (nonatomic, copy) NSAttributedString *text;
-+@end
-+
-+@implementation IMETextView
-+- (void)drawRect:(NSRect)dirtyRect
-+{
-+    [super drawRect:dirtyRect];
-+    CGSize size = [_text size];
-+    [[NSColor whiteColor] set];
-+    NSRectFill(dirtyRect);
-+    [_text drawInRect:CGRectMake(0, 0, size.width, size.height)];
-+}
-+@end
-+#endif
+#if 1 // inserted for DOSBox-X
+@interface IMETextView : NSView
+@property (nonatomic, copy) NSAttributedString *text;
+@end
+
+@implementation IMETextView
+- (void)drawRect:(NSRect)dirtyRect
+{
+    [super drawRect:dirtyRect];
+    CGSize size = [_text size];
+    [[NSColor whiteColor] set];
+    NSRectFill(dirtyRect);
+    [_text drawInRect:CGRectMake(0, 0, size.width, size.height)];
+}
+@end
+#endif
 
 @interface SDLTranslatorResponder : NSView <NSTextInputClient> {
     NSString *_markedText;
@@ -86,7 +86,7 @@
 
     SDL_SendKeyboardText(str);
     [_markedLabel setHidden:YES];  // inserted for DOSBox-X
-+   _markedLabel.text = nil;       // inserted for DOSBox-X
+    _markedLabel.text = nil;       // inserted for DOSBox-X
 }
 
 - (void)doCommandBySelector:(SEL)myselector
@@ -118,14 +118,14 @@ static long end_ticks = 0;        // inserted for DOSBox-X
 - (void)setMarkedText:(id)aString selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange
 {
     if ([aString isKindOfClass:[NSAttributedString class]]) {
-+#if 1 // inserted for DOSBox-X
-+        [aString addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:_inputRect.h] range:NSMakeRange(0, [aString length])];
-+        _markedLabel.text = aString;
-+        CGSize size = [aString size];
-+        [_markedLabel setFrameSize:size];
-+        [_markedLabel setHidden:NO];
-+        [_markedLabel setNeedsDisplay:YES];
-+#endif
+#if 1 // inserted for DOSBox-X
+        [aString addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:_inputRect.h] range:NSMakeRange(0, [aString length])];
+        _markedLabel.text = aString;
+        CGSize size = [aString size];
+        [_markedLabel setFrameSize:size];
+        [_markedLabel setHidden:NO];
+        [_markedLabel setNeedsDisplay:YES];
+#endif
         aString = [aString string];
     }
 
@@ -160,37 +160,37 @@ static long end_ticks = 0;        // inserted for DOSBox-X
     SDL_SendEditingText("", 0, 0);
 }
 
-+#if 1 // inserted for DOSBox-X
-+#define IME_END_CR_WAIT 25
-+SDL_bool SDL_IM_Composition(int more) {
-+    return ime_incompos||end_ticks&&(TickCount()-end_ticks<IME_END_CR_WAIT*more) ? SDL_TRUE : SDL_FALSE;
-+}
-+
-+static int GetEnableIME()
-+{
-+    TISInputSourceRef is = TISCopyCurrentKeyboardInputSource();
-+    CFBooleanRef ret = (CFBooleanRef)TISGetInputSourceProperty(is, kTISPropertyInputSourceIsASCIICapable);
-+    return CFBooleanGetValue(ret) ? 0 : 1;
-+}
-+
-+- (void)keyboardInputSourceChanged:(NSNotification *)notification
-+{
-+    if(!GetEnableIME()) {
-+        [_markedLabel setHidden:YES];
-+        [[NSTextInputContext currentInputContext] discardMarkedText];
-+    }
-+}
-+#endif
+#if 1 // inserted for DOSBox-X
+#define IME_END_CR_WAIT 25
+SDL_bool SDL_IM_Composition(int more) {
+    return ime_incompos||end_ticks&&(TickCount()-end_ticks<IME_END_CR_WAIT*more) ? SDL_TRUE : SDL_FALSE;
+}
+
+static int GetEnableIME()
+{
+    TISInputSourceRef is = TISCopyCurrentKeyboardInputSource();
+    CFBooleanRef ret = (CFBooleanRef)TISGetInputSourceProperty(is, kTISPropertyInputSourceIsASCIICapable);
+    return CFBooleanGetValue(ret) ? 0 : 1;
+}
+
+- (void)keyboardInputSourceChanged:(NSNotification *)notification
+{
+    if(!GetEnableIME()) {
+        [_markedLabel setHidden:YES];
+        [[NSTextInputContext currentInputContext] discardMarkedText];
+    }
+}
+#endif
 
 - (NSRect)firstRectForCharacterRange:(NSRange)aRange actualRange:(NSRangePointer)actualRange
 {
     NSWindow *window = [self window];
     NSRect contentRect = [window contentRectForFrameRect:[window frame]];
     float windowHeight = contentRect.size.height;
-+    //NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y - _inputRect.h,
-+    //                         _inputRect.w, _inputRect.h);
-+    NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y,
-+                             _inputRect.w, 0); // Fixed for DOSBox-X
+    //NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y - _inputRect.h,
+    //                         _inputRect.w, _inputRect.h);
+    NSRect rect = NSMakeRect(_inputRect.x, windowHeight - _inputRect.y,
+                             _inputRect.w, 0); // Fixed for DOSBox-X
 
     if (actualRange) {
         *actualRange = aRange;

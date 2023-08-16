@@ -91,17 +91,17 @@ SDL_SYS_CreateThread(SDL_Thread * thread)
     pthread_attr_t type;
 
     /* do this here before any threads exist, so there's no race condition. */
-    #if (defined(__MACOSX__) || defined(__IPHONEOS__) || defined(__LINUX__)) && defined(HAVE_DLOPEN)
+#if (defined(__MACOS__) || defined(__IOS__) || defined(__LINUX__)) && defined(HAVE_DLOPEN)
     if (!checked_setname) {
         void *fn = dlsym(RTLD_DEFAULT, "pthread_setname_np");
-        #if defined(__MACOSX__) || defined(__IPHONEOS__)
-        ppthread_setname_np = (int(*)(const char*)) fn;
-        #elif defined(__LINUX__)
-        ppthread_setname_np = (int(*)(pthread_t, const char*)) fn;
-        #endif
+#if defined(__MACOS__) || defined(__IOS__)
+        ppthread_setname_np = (int (*)(const char *))fn;
+#elif defined(__LINUX__)
+        ppthread_setname_np = (int (*)(pthread_t, const char *))fn;
+#endif
         checked_setname = SDL_TRUE;
     }
-    #endif
+#endif
 
     /* Set the thread attributes */
     if (pthread_attr_init(&type) != 0) {

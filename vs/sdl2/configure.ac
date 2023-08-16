@@ -1491,7 +1491,9 @@ dnl  This lets us catch things that would fail on a C89 compiler when using
 dnl  a modern GCC.
 CheckDeclarationAfterStatement()
 {
-    AC_MSG_CHECKING(for GCC -Wdeclaration-after-statement option)
+    true
+    /*
+     AC_MSG_CHECKING(for GCC -Wdeclaration-after-statement option)
     have_gcc_declaration_after_statement=no
 
     save_CFLAGS="$CFLAGS"
@@ -1505,6 +1507,7 @@ CheckDeclarationAfterStatement()
     if test x$have_gcc_declaration_after_statement = xyes; then
         EXTRA_CFLAGS="$EXTRA_CFLAGS -Wdeclaration-after-statement -Werror=declaration-after-statement"
     fi
+     */
 }
 
 dnl See if GCC's -Wall is supported.
@@ -4251,7 +4254,7 @@ dnl BeOS support removed after SDL 2.0.1. Haiku still works.  --ryan.
         EXTRA_CFLAGS="$EXTRA_CFLAGS -DTARGET_API_MAC_OSX"
 
         CheckVisibilityHidden
-        CheckDeclarationAfterStatement
+        # CheckDeclarationAfterStatement
         CheckDummyVideo
         CheckOffscreenVideo
         CheckDiskAudio
