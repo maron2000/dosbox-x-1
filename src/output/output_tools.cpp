@@ -99,6 +99,7 @@ std::string GetDefaultOutput() {
     return output;
 }
 
+static bool init_output = true; // Initialize output before switching to TTF output, true if not initialized yet
 void change_output(int output) {
     GFX_Stop();
     Section * sec = control->GetSection("sdl");
@@ -155,6 +156,10 @@ void change_output(int output) {
         break;
 #if defined(USE_TTF)
     case 10:
+        if(init_output) {
+            change_output(0);
+            init_output = false;
+        }
         OUTPUT_TTF_Select();
     case 11:
         sdl.desktop.want_type = SCREEN_TTF;
