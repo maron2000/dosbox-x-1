@@ -41,8 +41,9 @@
 @implementation IMETextView
 - (void)drawRect:(NSRect)dirtyRect
 {
+    CGSize size;
     [super drawRect:dirtyRect];
-    CGSize size = [_text size];
+    size = [_text size];
     [[NSColor whiteColor] set];
     NSRectFill(dirtyRect);
     [_text drawInRect:CGRectMake(0, 0, size.width, size.height)];
@@ -124,9 +125,10 @@ static long end_ticks = 0;        // inserted for DOSBox-X
 {
     if ([aString isKindOfClass:[NSAttributedString class]]) {
 #if 1 // inserted for DOSBox-X
+        CGSize size;
         [aString addAttribute:NSFontAttributeName value:[NSFont systemFontOfSize:_inputRect.h] range:NSMakeRange(0, [aString length])];
         _markedLabel.text = aString;
-        CGSize size = [aString size];
+        size = [aString size];
         [_markedLabel setFrameSize:size];
         [_markedLabel setHidden:NO];
         [_markedLabel setNeedsDisplay:YES];
