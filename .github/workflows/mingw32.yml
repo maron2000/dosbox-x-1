@@ -46,6 +46,7 @@ jobs:
           rm -rf D:/a/_temp/msys64/mingw32/
           7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0.7z -oD:/a/_temp/msys64
           ls -lg D:/a/_temp/msys64/mingw32
+          ln -s D:/a/_temp/msys64/mingw32/bin/mingw32-make.exe D:/a/_temp/msys64/mingw32/bin/make.exe
           chmod +x D:/a/_temp/msys64/mingw32/bin/*.exe
           chmod +x D:/a/_temp/msys64/mingw32/i686-w64-mingw32/bin/*.exe
           chmod +x D:/a/_temp/msys64/mingw32/libexec/gcc/i686-w64-mingw32/7.3.0/*.exe
