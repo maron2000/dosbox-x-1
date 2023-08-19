@@ -26,7 +26,7 @@ jobs:
         with:
           msystem: MINGW32
           update: true
-          # install: git mingw-w64-i686-toolchain mingw-w64-i686-libslirp mingw-w64-i686-libtool mingw-w64-i686-nasm autoconf automake
+          install: git mingw-w64-i686-toolchain mingw-w64-i686-libslirp mingw-w64-i686-libtool mingw-w64-i686-nasm autoconf automake
       - name: Update build info
         shell: bash
         run: |
@@ -45,6 +45,11 @@ jobs:
           top=`pwd`
           rm -rf D:/a/_temp/msys64/mingw32/
           7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0.7z -oD:/a/_temp/msys64/mingw32/
+          ls -lg D:/a/_temp/msys64/mingw32/
+          chmod +x D:/a/_temp/msys64/mingw32/bin/*.exe
+          chmod +x D:/a/_temp/msys64/mingw32/i686-w64-mingw32/bin/*.exe
+          chmod +x D:/a/_temp/msys64/mingw32/libexec/gcc/i686-w64-mingw32/7.3.0/*.exe
+          chmod +x D:/a/_temp/msys64/mingw32/opt/bin/*.exe
       - name: Build MinGW32 SDL1
         run: |
           top=`pwd`
