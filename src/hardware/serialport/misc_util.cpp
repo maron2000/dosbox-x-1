@@ -26,6 +26,10 @@
 /*****************************************************************************/
 // C++ SDLnet wrapper
 
+#ifdef __MINGW64_VERSION_MAJOR
+#undef __MINGW64_VERSION_MAJOR
+#endif
+
 #if !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
 #define ENET_IMPLEMENTATION
 #include "enet.h"
