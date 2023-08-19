@@ -12,11 +12,26 @@ if test -z "${top}" ; then exit 1; fi
 # fix
 chmod +x vs/sdl/build-scripts/strip_fPIC.sh
 
+CXXFLAGS="$CXXFLAGS -DNCURSES_STATIC "
+CPPFLAGS="$CPPFLAGS -DNCURSES_STATIC "
+CFLAGS="$CFLAGS -DNCURSES_STATIC "
+
+if [ -f ${MSYSTEM_PREFIX}/i686-7.3.0-release-posix-dwarf-rt_v5-rev0.txt ] ; then
+ PATH="$PATH:/mingw32/opt/bin"
+ CXXFLAGS="$CXXFLAGS -I${MSYSTEM_PREFIX}/opt/include -DNCURSES_STATIC"
+ CPPFLAGS="$CPPFLAGS -I${MSYSTEM_PREFIX}/opt/include -DNCURSES_STATIC "
+ CFLAGS="$CFLAGS -I${MSYSTEM_PREFIX}/opt/include -DNCURSES_STATIC "
+ LDFLAGS="$LDFLAGS -L${MSYSTEM_PREFIX}/opt/lib "
+ export LDFLAGS PATH
+ sed -i 's@\(^#if !defined(__MINGW32__)\)\(.*|| defined(__MINGW64_VERSION_MAJOR)\)@//\1\2 Fix for lowend build. Revert this for normal versions\n\1@g' src/hardware/serialport/misc_util.cpp
+fi
+export CXXFLAGS CPPFLAGS CFLAGS
+
 # prefer to compile against our own copy of SDL 2.x IF the system does not provide one
 x=$(which sdl2-config)
 if test -z "${x}" ; then
-    echo "Compiling our internal SDL 2.x"
-    (cd vs/sdl2 && ./build-dosbox.sh) || exit 1
+   echo "Compiling our internal SDL 2.x"
+   (cd vs/sdl2 && ./build-dosbox.sh) || exit 1
 fi
 
 # prefer to compile against our own copy of SDLnet 1.x
@@ -65,6 +80,7 @@ pacman -S --needed --noconfirm mingw-w64-x86_64-libslirp &>/dev/null
 # now compile ourself
 echo "Compiling DOSBox-X"
 chmod +x configure
+
 # FIXME: I would like MinGW builds to enable the debugger, eventually
-./configure --enable-d3d9 --enable-d3d-shaders --disable-libfluidsynth --prefix=/usr --enable-sdl2 "${@}" || exit 1
+./configure --enable-debug --disable-avcodec --enable-d3d9 --enable-d3d-shaders --disable-libfluidsynth --prefix=/usr --enable-sdl2 "${@}" || exit 1
 make -j3 || exit 1

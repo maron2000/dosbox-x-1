@@ -44,17 +44,12 @@ jobs:
         run: |
           top=`pwd`
           rm -rf D:/a/_temp/msys64/mingw32/
-          7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0.7z -oD:/a/_temp/msys64
+          7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0+nasm.7z -oD:/a/_temp/msys64
           ln -s $top/build-scripts/mingw/lowend-bin/make.exe D:/a/_temp/msys64/mingw32/bin/make.exe
-          cp -r D:/a/_temp/msys64/mingw32/opt/bin D:/a/_temp/msys64/mingw32/
-          cp -r D:/a/_temp/msys64/mingw32/opt/include D:/a/_temp/msys64/mingw32/
-          cp -r D:/a/_temp/msys64/mingw32/opt/lib D:/a/_temp/msys64/mingw32/
-          cp -r D:/a/_temp/msys64/mingw32/opt/share D:/a/_temp/msys64/mingw32/ 
           ls -lg D:/a/_temp/msys64/mingw32
-          # chmod +x D:/a/_temp/msys64/mingw32/bin/*.exe
-          # chmod +x D:/a/_temp/msys64/mingw32/i686-w64-mingw32/bin/*.exe
-          # chmod +x D:/a/_temp/msys64/mingw32/libexec/gcc/i686-w64-mingw32/7.3.0/*.exe
-          # chmod +x D:/a/_temp/msys64/mingw32/opt/bin/*.exe
+          chmod +x D:/a/_temp/msys64/mingw32/bin/*.*
+          chmod +x D:/a/_temp/msys64/mingw32/i686-w64-mingw32/bin/*.*
+          chmod +x D:/a/_temp/msys64/mingw32/opt/bin/*.*
       - name: Build MinGW32 SDL1
         run: |
           top=`pwd`
