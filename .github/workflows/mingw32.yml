@@ -45,6 +45,7 @@ jobs:
           top=`pwd`
           echo "${top}"
           echo "MSYSTEM_PREFIX=/d/a/_temp/msys64/mingw32" >> $GITHUB_ENV
+          export "MSYSTEM_PREFIX=/d/a/_temp/msys64/mingw32"
           cd ${MSYSTEM_PREFIX}/..
           ls -lg
           rm -rf /d/a/_temp/msys64/mingw32
