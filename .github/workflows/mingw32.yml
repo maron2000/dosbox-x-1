@@ -44,11 +44,8 @@ jobs:
         run: |
           top=`pwd`
           echo "${top}"
-          cd ${MSYSTEM_PREFIX}
-          cd ..
-          echo `pwd`
+          cd /d/a/
           ls -lg
-          rm -rf ${MSYSTEM_PREFIX}
           7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0+nasm.7z
           ln -s $top/build-scripts/mingw/lowend-bin/make.exe ${MSYSTEM_PREFIX}/bin/make.exe
           ls -lg ${MSYSTEM_PREFIX}
