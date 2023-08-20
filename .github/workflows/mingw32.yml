@@ -26,7 +26,7 @@ jobs:
         with:
           msystem: MINGW32
           update: true
-          install: git mingw-w64-i686-toolchain mingw-w64-i686-libslirp mingw-w64-i686-libtool mingw-w64-i686-nasm autoconf automake
+          install: git make mingw-w64-i686-toolchain mingw-w64-i686-libslirp mingw-w64-i686-libtool mingw-w64-i686-nasm autoconf automake mingw-w64-x86_64-ncurses
       - name: Update build info
         shell: bash
         run: |
@@ -43,6 +43,7 @@ jobs:
         run: |
           top=`pwd`
           export "MSYSTEM_PREFIX=/d/a/_temp/msys64/mingw32"
+          # cp $top/build-scripts/mingw/lowend-bin/make.exe ${MSYSTEM_PREFIX}/bin/make.exe
           ./build-mingw
           strip -s $top/src/dosbox-x.exe
       - name: Package MinGW32 SDL1
