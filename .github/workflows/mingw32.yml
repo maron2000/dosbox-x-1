@@ -44,8 +44,8 @@ jobs:
         run: |
           top=`pwd`
           echo "${top}"
-          echo "MINGW_PREFIX=/d/a/_temp/msys64/mingw32" >> $GITHUB_ENV
-          cd ${MINGW_PREFIX}/..
+          echo "MSYSTEM_PREFIX=/d/a/_temp/msys64/mingw32" >> $GITHUB_ENV
+          cd ${MSYSTEM_PREFIX}/..
           ls -lg
           rm -rf mingw32
           7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0+nasm.7z
