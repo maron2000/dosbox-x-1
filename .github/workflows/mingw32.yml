@@ -52,9 +52,10 @@ jobs:
           rm -rf /d/a/_temp/msys64/mingw32
           mkdir mingw32
           7z x $top/build-scripts/mingw/lowend-bin/i686-7.3.0-release-posix-dwarf-rt_v5-rev0+nasm.7z -o${MSYSTEM_PREFIX}
+          cp $top/build-scripts/mingw/lowend-bin/make.exe ${MSYSTEM_PREFIX}/bin/make.exe
           echo "MSYSTEM_PREFIX=${MSYSTEM_PREFIX}"
           ls -lg ${MSYSTEM_PREFIX}
-          ls -lg ${MSYSTEM_PREFIX}/bin/make.exe
+          ls -lg ${MSYSTEM_PREFIX}/bin/m*.*
           chmod +x ${MSYSTEM_PREFIX}/bin/*.*
           chmod +x ${MSYSTEM_PREFIX}/i686-w64-mingw32/bin/*.*
           chmod +x ${MSYSTEM_PREFIX}/opt/bin/*.*
