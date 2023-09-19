@@ -2597,6 +2597,14 @@ void GFX_SwitchFullScreen(void)
     if (ttf.inUse) {
         if (ttf.fullScrn) {
             sdl.desktop.fullscreen = false;
+#if WIN32 && !C_SDL2
+            char winpos[100];
+            if(posx <= 10) posx = 10;
+            if(posy <= 50) posy = 50;
+            safe_strncpy(winpos, "SDL_VIDEO_WINDOW_POS=", sizeof(winpos));
+            safe_strcat(winpos, (std::to_string(posx)+","+std::to_string(posy)).c_str());
+            SDL_putenv(winpos); // restore window position
+#endif
             if (lastfontsize>0)
                 OUTPUT_TTF_Select(lastfontsize);
             else
@@ -2639,7 +2647,25 @@ void GFX_SwitchFullScreen(void)
         } else {
             lastfontsize = ttf.pointsize;
             sdl.desktop.fullscreen = true;
+#if WIN32
+            HWND hWnd = GetHWND();
+            RECT rect;
+            if (GetWindowRect(hWnd, &rect)){ //save window position
+                posx = rect.left >= 10 ? rect.left : 10; // We don't want any portion of the screen to be hidden by the frame of your display
+                posy = rect.top >= 50 ? rect.top : 50;
+            }else{
+                posx = 10;
+                posy = 50;
+            }
+#if !C_SDL2
+            SDL_putenv("SDL_VIDEO_WINDOW_POS=0,0");  // Fullscreen mode should start from upper-left corner of the screen
+#else
+            SDL_SetWindowPosition(sdl.window, 0, 0); // Fullscreen mode should start from upper-left corner of the screen
+            OUTPUT_SURFACE_Select(); // Initialize with surface mode before switching to TTF mode (required for Windows SDL2 builds)
+#endif
+#endif
             OUTPUT_TTF_Select(3);
+            lastfontsize = -1; // let DOSBox-X determine appropriate font size when returning to windowed mode since certain size makes it crash
             resetFontSize();
         }
         modeSwitched(sdl.desktop.fullscreen);
@@ -3715,10 +3741,8 @@ static void GUI_StartUp() {
     sdl.desktop.isperfect = false; /* Reset before selection */
     if (output == "surface") 
     {
-#if C_DIRECT3D
-        if(!init_output) OUTPUT_DIRECT3D_Select();
-#elif C_OPENGL && defined(MACOSX) // JC: This is breaking SDL1 on Linux! Limit this to MAC OS! Windows users may use this if needed.
-        if(!init_output) OUTPUT_OPENGL_Select(GLBilinear); // Initialize screen before switching to TTF (required for macOS builds)     
+#if (WIN32 || MACOSX) && C_OPENGL    // JC: This is breaking SDL1 on Linux! Limit this to MAC OS! Windows users may use this if needed.
+        if(!init_output) OUTPUT_OPENGL_Select(GLBilinear); // Initialize screen before switching to TTF (required for Windows & macOS builds)
 #endif
         OUTPUT_SURFACE_Select();
         init_output = true;
@@ -3756,7 +3780,7 @@ static void GUI_StartUp() {
     else if (output == "ttf")
     {
         LOG_MSG("SDL(sdlmain.cpp): TTF activated");
-#if ((WIN32 && !defined(C_SDL2)) || MACOSX) && C_OPENGL
+#if (WIN32 || MACOSX) && C_OPENGL 
         if(!init_output) OUTPUT_OPENGL_Select(GLBilinear); // Initialize screen before switching to TTF (required for Windows & macOS builds)
 #endif
         OUTPUT_TTF_Select(0);
@@ -3766,9 +3790,9 @@ static void GUI_StartUp() {
     else 
     {
         LOG_MSG("SDL: Unsupported output device %s, switching back to surface",output.c_str());
-#if MACOSX && C_OPENGL
+#if (WIN32 || MACOSX) && C_OPENGL 
         if(!init_output) OUTPUT_OPENGL_Select(GLBilinear); // Initialize screen before switching to surface (required for macOS builds)     
-#endif
+#endif 
         OUTPUT_SURFACE_Select(); // should not reach there anymore
         init_output = true;
     }
@@ -5775,8 +5799,7 @@ void GFX_Events() {
                                 BIOS_AddKeyToBuffer(0xf000 | 0x40);
                                 break;
                             }
-                        }
-                        else break;
+                        } else break;
                     }
                 }
 #endif
