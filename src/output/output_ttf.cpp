@@ -36,6 +36,11 @@
 #include "../ints/int10.h"
 
 #include <output/output_ttf.h>
+#include <output/output_opengl.h>
+#include <output/output_direct3d.h>
+#if C_DIRECT3D
+    void d3d_init(void);
+#endif
 
 using namespace std;
 
@@ -256,7 +261,7 @@ bool setColors(const char *colorArray, int n) {
     if (IS_PC98_ARCH) return false;
     staycolors = strlen(colorArray) && *colorArray == '+';
     const char* nextRGB = colorArray + (staycolors?1:0);
-	uint8_t * altPtr = (uint8_t *)altBGR1;
+	// uint8_t * altPtr = (uint8_t *)altBGR1; /* unused */
 	int32_t rgbVal[4] = {-1,-1,-1,-1};
     for(int colNo = n > -1 ? n : 0; colNo < (n > -1 ? n + 1 : 16); colNo++) {
         if(sscanf(nextRGB, " ( %d , %d , %d)", &rgbVal[0], &rgbVal[1], &rgbVal[2]) == 3) {	// Decimal: (red,green,blue)
@@ -619,6 +624,14 @@ void SetOutputSwitch(const char *outputstr) {
 }
 
 void OUTPUT_TTF_Select(int fsize) {
+#if defined(WIN32) && !(HXDOS) // A workaround to avoid freezing when switching to fullscreen with TTF output on Windows
+#if C_DIRECT3D
+        OUTPUT_DIRECT3D_Select();
+        d3d_init();
+#elif C_OPENGL
+        OUTPUT_OPENGL_Select(GLBilinear);
+#endif
+#endif
     if (!initttf&&TTF_Init()) {											// Init SDL-TTF
         std::string message = "Could not init SDL-TTF: " + std::string(SDL_GetError());
         systemmessagebox("Error", message.c_str(), "ok","error", 1);
