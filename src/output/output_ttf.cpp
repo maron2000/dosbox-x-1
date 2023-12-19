@@ -1106,14 +1106,20 @@ void GFX_EndTextLines(bool force) {
                     ttf_fgColor.g = rgbColors[colorFG].green;
                     ttf_fgColor.b = rgbColors[colorFG].blue;
                 }
-                if(!y) LOG_MSG("hasfocus=%d, noframe=%d",hasfocus?1:0,noframe?1:0);
                 if(!hasfocus&&noframe&&!y) { // Dim top line if focus is lost in Fullscreen mode
-                    ttf_bgColor.r = (ttf_bgColor.r * 2 +128) / 4;
-                    ttf_bgColor.g = (ttf_bgColor.g * 2 +128) / 4;
-                    ttf_bgColor.b = (ttf_bgColor.b * 2 +128) / 4;
-                    ttf_fgColor.r = (ttf_fgColor.r * 2 +128) / 4;
-                    ttf_fgColor.g = (ttf_fgColor.g * 2 +128) / 4;
-                    ttf_fgColor.b = (ttf_fgColor.b * 2 +128) / 4;
+                    uint16_t temp_color;
+                    temp_color=(ttf_bgColor.r * 2 +128) / 4;
+                    ttf_bgColor.r = temp_color & 0xFF;
+                    temp_color=(ttf_bgColor.g * 2 +128) / 4;
+                    ttf_bgColor.g = temp_color & 0xFF;
+                    temp_color=(ttf_bgColor.b * 2 +128) / 4;
+                    ttf_bgColor.b = temp_color & 0xFF;
+                    temp_color=(ttf_fgColor.r * 2 +128) / 4;
+                    ttf_fgColor.r = temp_color & 0xFF;
+                    temp_color=(ttf_fgColor.g * 2 +128) / 4;
+                    ttf_fgColor.g = temp_color & 0xFF;
+                    temp_color=(ttf_fgColor.b * 2 +128) / 4;
+                    ttf_fgColor.b = temp_color & 0xFF;
                 }
                 //ttf_bgColor.r = !y&&!hasfocus&&noframe?altBGR0[colorBG&15].red:(colornul||(colorChanged&&!IS_VGA_ARCH)?altBGR1[colorBG&15].red:rgbColors[colorBG].red);
                 //ttf_bgColor.g = !y&&!hasfocus&&noframe?altBGR0[colorBG&15].green:(colornul||(colorChanged&&!IS_VGA_ARCH)?altBGR1[colorBG&15].green:rgbColors[colorBG].green);
