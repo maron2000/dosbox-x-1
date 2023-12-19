@@ -8177,7 +8177,7 @@ bool setVGAColor(const char *colorArray, int j) {
     IO_WriteB(VGAREG_ACTL_ADDRESS, j+32);
     uint8_t imap=IO_ReadB(VGAREG_ACTL_READ_DATA);
     IO_WriteB(VGAREG_DAC_WRITE_ADDRESS, imap);
-    IO_WriteB(VGAREG_DAC_DATA, rgbVal[0] >> 2);
+    IO_WriteB(VGAREG_DAC_DATA, rgbVal[0] >> 2); // Convert 8-bit to 6-bit DAC value
     IO_WriteB(VGAREG_DAC_DATA, rgbVal[1] >> 2);
     IO_WriteB(VGAREG_DAC_DATA, rgbVal[2] >> 2);
     rgbcolors[j].red = rgbVal[0] & 0xFF;
