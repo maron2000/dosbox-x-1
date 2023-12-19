@@ -1106,6 +1106,7 @@ void GFX_EndTextLines(bool force) {
                     ttf_fgColor.g = rgbColors[colorFG].green;
                     ttf_fgColor.b = rgbColors[colorFG].blue;
                 }
+                if(!y) LOG_MSG("hasfocus=%d, noframe=%d",hasfocus?1:0,noframe?1:0);
                 if(!hasfocus&&noframe&&!y) { // Dim top line if focus is lost in Fullscreen mode
                     ttf_bgColor.r = (ttf_bgColor.r * 2 +128) / 4;
                     ttf_bgColor.g = (ttf_bgColor.g * 2 +128) / 4;
