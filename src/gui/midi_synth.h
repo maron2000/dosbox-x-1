@@ -156,7 +156,7 @@ public:
 				fclose(file);
 				sf = "C:\\DOSBox-X\\GeneralUser_GS.sf2";
 			} else {
-				LOG_MSG("MIDI:synth: Specify .SF2 sound font file with midiconfig=");
+				LOG_MSG("MIDI:synth: Specify .SF2 sound font file with fluid.soundfont=");
 				return false;
 			}
 #else
@@ -173,7 +173,7 @@ public:
 				fclose(file);
 				sf = "/usr/share/sounds/sf2/GeneralUser_GS.sf2";
 			} else {
-				LOG_MSG("MIDI:synth: Specify .SF2 sound font file with midiconfig=");
+				LOG_MSG("MIDI:synth: Specify .SF2 sound font file with fluid.soundfont=");
 				return false;
 			}
 #endif
