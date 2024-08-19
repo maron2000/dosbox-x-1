@@ -739,10 +739,7 @@ void Load_Language(std::string name) {
     if (TTF_using()) resetFontSize();
 #endif
     if (!uselangcp && !incall) {
-        int oldmsgcp = msgcodepage;
-        msgcodepage = dos.loaded_codepage;
         SetKEYBCP();
-        msgcodepage = oldmsgcp;
     }
 }
 

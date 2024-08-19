@@ -208,7 +208,7 @@ void SetKEYBCP() {
     Bitu return_code;
     const char* layout_name = DOS_GetLoadedLayout();
     return_code = DOS_LoadKeyboardLayout("us", 437, "auto");
-    if(strlen(layout_name) == 2) {
+    if(layout_name && strlen(layout_name) == 2) {
         return_code = DOS_ChangeKeyboardLayout(layout_name, 0);
     }
     if(msgcodepage == 932 || msgcodepage == 936 || msgcodepage == 949 || msgcodepage == 950 || msgcodepage == 951) {
@@ -265,7 +265,6 @@ void LoadMessageFile(const char * fname) {
 
 	LOG(LOG_MISC,LOG_DEBUG)("Loading message file %s",fname);
 
-	lastmsgcp = 0;
 	FILE * mfile=testLoadLangFile(fname);
 	/* This should never happen and since other modules depend on this use a normal printf */
 	if (!mfile) {
@@ -313,6 +312,8 @@ void LoadMessageFile(const char * fname) {
                         int c = atoi(r+1);
                         if(!isSupportedCP(c)) {
                             LOG_MSG("Language file: Invalid codepage :DOSBOX-X:CODEPAGE:%d", c);
+                            msgcodepage = lastmsgcp;
+                            dos.loaded_codepage = cp;
                         }
                         else if((!res || control->opt_langcp || uselangcp) && c > 0){
                             if (((IS_PC98_ARCH||IS_JEGA_ARCH) && c!=437 && c!=932 && !systemmessagebox("DOSBox-X language file", "You have specified a language file which uses a code page incompatible with the Japanese PC-98 or JEGA/AX system.\n\nAre you sure to use the language file for this machine type?", "yesno","question", 2)) || (((IS_JDOSV && c!=932) || (IS_PDOSV && c!=936) || (IS_KDOSV && c!=949) || (IS_TDOSV && c!=950 && c!=951)) && c!=437 && !systemmessagebox("DOSBox-X language file", "You have specified a language file which uses a code page incompatible with the current DOS/V system.\n\nAre you sure to use the language file for this system type?", "yesno","question", 2))) {
@@ -323,12 +324,16 @@ void LoadMessageFile(const char * fname) {
                             std::string msg = "The specified language file uses code page " + std::to_string(c) + ". Do you want to change to this code page accordingly?";
                             if (loadlang && !control->opt_langcp && !uselangcp && c != 437 && GetDefaultCP() == 437 && systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno", "question", 1)) control->opt_langcp = true;
                             else control->opt_langcp = true;
+                            lastmsgcp = c;
                             msgcodepage = c;
                             dos.loaded_codepage = c;
                             if (c == 950 && !chinasea) makestdcp950table();
                             if (c == 951 && chinasea) makeseacp951table();
                         }
-                        lastmsgcp = c;
+                        else {
+                            msgcodepage = lastmsgcp;
+                            dos.loaded_codepage = cp;
+                        }
                     } else if (!strcmp(p, "LANGUAGE"))
                         langname = r+1;
                     else if (!strcmp(p, "REMARK"))
@@ -381,14 +386,14 @@ void LoadMessageFile(const char * fname) {
     menu_update_dynamic();
     menu_update_autocycle();
     update_bindbutton_text();
-    dos.loaded_codepage=cp;
-    if ((control->opt_langcp || uselangcp) && msgcodepage>0 && isSupportedCP(msgcodepage) && msgcodepage != dos.loaded_codepage) {
+    if ((control->opt_langcp || uselangcp) && msgcodepage>0 && isSupportedCP(msgcodepage)) {
         ShutFontHandle();
         if(msgcodepage == 932 || msgcodepage == 936 || msgcodepage == 949 || msgcodepage == 950 || msgcodepage == 951) {
-            dos.loaded_codepage = msgcodepage;
             InitFontHandle();
             JFONT_Init();
-            dos.loaded_codepage = cp;
+            DOSBox_SetSysMenu();
+            SetupDBCSTable();
+            runRescan("-A -Q");
         }
         if (uselangcp && !IS_DOSV && !IS_JEGA_ARCH) {
 #if defined(USE_TTF)

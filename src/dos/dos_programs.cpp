@@ -6967,7 +6967,7 @@ void KEYB::Run(void) {
                 else
 #endif
                 {
-                    MSG_Init();
+                    //MSG_Init();
                     DOSBox_SetSysMenu();
                     if(isDBCSCP()) {
                         ShutFontHandle();
