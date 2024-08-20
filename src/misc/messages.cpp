@@ -222,6 +222,9 @@ void SetKEYBCP() {
             dos.loaded_codepage = msgcodepage;
         }
     }
+#if defined(USE_TTF)
+    if(ttf.inUse) toSetCodePage(NULL, msgcodepage, -2);
+#endif
     runRescan("-A -Q");
 }
 
@@ -393,12 +396,9 @@ void LoadMessageFile(const char * fname) {
             JFONT_Init();
             DOSBox_SetSysMenu();
             SetupDBCSTable();
-            runRescan("-A -Q");
+            runRescan("/A /Q");
         }
         if (uselangcp && !IS_DOSV && !IS_JEGA_ARCH) {
-#if defined(USE_TTF)
-            if (ttf.inUse) toSetCodePage(NULL, msgcodepage, -2); else
-#endif
             {
                 dos.loaded_codepage = msgcodepage;
                 DOSBox_SetSysMenu();

@@ -4553,7 +4553,7 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
         SetupDBCSTable();
         runRescan("-A -Q");
 #if defined(USE_TTF)
-        if ((opt==-1||opt==-2)&&TTF_using()&&(newCP==932||newCP==936||newCP==949||newCP==950||newCP==951)) {
+        if ((opt==-1||opt==-2)&&TTF_using()) {
             Section_prop * ttf_section = static_cast<Section_prop *>(control->GetSection("ttf"));
             const char *font = ttf_section->Get_string("font");
             if (!font || !*font) {
