@@ -114,6 +114,7 @@ void runBoot(const char *str), runMount(const char *str), runImgmount(const char
 void getdrivezpath(std::string &path, std::string const& dirname), drivezRegister(std::string const& path, std::string const& dir, bool usecp), UpdateDefaultPrinterFont(void);
 std::string GetDOSBoxXPath(bool withexe=false);
 FILE *testLoadLangFile(const char *fname);
+void LoadMessageFile(const char * fname);
 
 #if defined(OS2)
 #define INCL DOSFILEMGR
@@ -206,6 +207,7 @@ void DetachFromBios(imageDisk* image) {
     }
 }
 
+extern bool uselangcp;
 void SwitchLanguage(int oldcp, int newcp, bool confirm) {
     (void)oldcp; //unused
     auto iterold = langcp_map.find(lastmsgcp), iternew = langcp_map.find(newcp);
@@ -216,8 +218,10 @@ void SwitchLanguage(int oldcp, int newcp, bool confirm) {
             fclose(file);
             std::string msg = "You have changed the active code page to " + std::to_string(newcp) + ". Do you want to load language file " + langnew + " for this code page?";
             if (!confirm || systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno","question", 2)) {
+                uselangcp = true;
                 SetVal("dosbox", "language", langnew);
                 Load_Language(langnew);
+                uselangcp = false;
                 lastmsgcp = newcp;
             }
         }
