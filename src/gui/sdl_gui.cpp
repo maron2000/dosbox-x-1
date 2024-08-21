@@ -234,8 +234,9 @@ bool gui_menu_exit(DOSBoxMenu * const menu,DOSBoxMenu::item * const menuitem) {
     return true;
 }
 
-extern bool toscale;
+extern bool toscale, uselangcp;
 extern const char* RunningProgram;
+void Load_Language(std::string name);
 static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     in_gui = true;
 
@@ -248,9 +249,13 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     SDL_Delay(20);
 
     unsigned int cpbak = dos.loaded_codepage;
-    if (dos_kernel_disabled&&maincp) dos.loaded_codepage = maincp;
+    //if (dos_kernel_disabled&&maincp) dos.loaded_codepage = maincp;
     Section_prop *section = static_cast<Section_prop *>(control->GetSection("dosbox"));
-    LoadMessageFile(section->Get_string("language"));
+    //LoadMessageFile(section->Get_string("language"));
+    //uselangcp = true;
+    //Load_Language(section->Get_string("language"));
+    //uselangcp = false;
+    //LOG_MSG("called from configuration tools");
     if (font_14_init) GUI_LoadFonts();
     dos.loaded_codepage = cpbak;
 
