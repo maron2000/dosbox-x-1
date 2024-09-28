@@ -59,8 +59,15 @@ extern char lastmount;
 extern const char *modifier;
 extern unsigned int sendkeymap;
 extern std::string langname, configfile, dosbox_title;
-extern int autofixwarn, enablelfn, fat32setver, paste_speed, wheel_key, freesizecap, wpType, wpVersion, wpBG, wpFG, lastset, blinkCursor, msgcodepage;
-extern bool dos_kernel_disabled, force_nocachedir, wpcolon, convertimg, lockmount, enable_config_as_shell_commands, lesssize, load, winrun, winautorun, startcmd, startwait, startquiet, starttranspath, mountwarning, wheel_guest, clipboard_dosapi, noremark_save_state, force_load_state, sync_time, manualtime, ttfswitch, loadlang, showbold, showital, showline, showsout, char512, printfont, rtl, gbk, chinasea, uao, showdbcs, dbcs_sbcs, autoboxdraw, halfwidthkana, ticksLocked, outcon, enable_dbcs_tables, show_recorded_filename, internal_program, pipetmpdev, notrysgf, uselangcp, incall;
+extern int autofixwarn, enablelfn, fat32setver, paste_speed, wheel_key, freesizecap, wpType, wpVersion, wpBG, wpFG, lastset, blinkCursor;
+extern int32_t msgcodepage, lastmsgcp;
+extern bool dos_kernel_disabled, force_nocachedir, wpcolon, convertimg, lockmount, enable_config_as_shell_commands;
+extern bool lesssize, load, winrun, winautorun, startcmd, startwait, startquiet, starttranspath, mountwarning, wheel_guest;
+extern bool clipboard_dosapi, noremark_save_state, force_load_state, sync_time, manualtime, ttfswitch, loadlang, showbold;
+extern bool showital, showline, showsout, char512, printfont, rtl, gbk, chinasea, uao, showdbcs, dbcs_sbcs, autoboxdraw;
+extern bool halfwidthkana, ticksLocked, outcon, enable_dbcs_tables, show_recorded_filename, internal_program, pipetmpdev, notrysgf,incall;
+extern bool uselangcp, loadlang, loadlangcp, loadlangnew;
+void LoadMessageFile(const char* fname);
 
 /* This registers a file on the virtual drive and creates the correct structure for it*/
 
@@ -726,7 +733,8 @@ void dos_ver_menu(bool start), ReloadMapper(Section_prop *sec, bool init), SetGa
 bool set_ver(char *s), GFX_IsFullscreen(void);
 
 void Load_Language(std::string name) {
-    if (control->opt_lang != "") control->opt_lang = name;
+    if (name != "" && control->opt_lang != "") control->opt_lang = name;
+    if(!loadlangnew) return;
     MSG_Init();
 #if DOSBOXMENU_TYPE == DOSBOXMENU_HMENU || DOSBOXMENU_TYPE == DOSBOXMENU_NSMENU
     mainMenu.unbuild();
@@ -738,12 +746,12 @@ void Load_Language(std::string name) {
 #if defined(USE_TTF)
     if (TTF_using()) resetFontSize();
 #endif
-    if (!uselangcp && !incall) {
-        int oldmsgcp = msgcodepage;
-        msgcodepage = dos.loaded_codepage;
+//    if (!uselangcp && !incall) {
+//        int oldmsgcp = msgcodepage;
+//        msgcodepage = dos.loaded_codepage;
         SetKEYBCP();
-        msgcodepage = oldmsgcp;
-    }
+//        msgcodepage = oldmsgcp;
+//    }
 }
 
 void ApplySetting(std::string pvar, std::string inputline, bool quiet) {
@@ -779,8 +787,10 @@ void ApplySetting(std::string pvar, std::string inputline, bool quiet) {
                     dosbox_title=section->Get_string("title");
                     trim(dosbox_title);
                 }
-                if (!strcasecmp(inputline.substr(0, 9).c_str(), "language="))
+                if(!strcasecmp(inputline.substr(0, 9).c_str(), "language="))
+                    loadlangnew = true;
                     Load_Language(section->Get_string("language"));
+                    loadlangnew = false;
                 if (!strcasecmp(inputline.substr(0, 16).c_str(), "mapper send key=")) {
                     std::string mapsendkey = section->Get_string("mapper send key");
                     if (mapsendkey=="winlogo") sendkeymap=1;

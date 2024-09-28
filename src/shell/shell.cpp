@@ -57,9 +57,11 @@ extern bool startcmd, startwait, startquiet, internal_program;
 extern bool addovl, addipx, addne2k, enableime, showdbcs;
 extern bool halfwidthkana, force_conversion, gbk;
 extern const char* RunningProgram;
-extern int enablelfn, msgcodepage, lastmsgcp;
+extern int enablelfn;
 extern uint16_t countryNo;
 extern unsigned int dosbox_shell_env_size;
+extern int32_t msgcodepage, lastmsgcp;
+extern bool loadlang, CHCPChangecodepage;
 bool outcon = true, usecon = true, pipetmpdev = true;
 bool shellrun = false, prepared = false, testerr = false;
 
@@ -69,6 +71,7 @@ Bitu call_int23 = 0;
 
 std::string GetDOSBoxXPath(bool withexe=false);
 const char* DOS_GetLoadedLayout(void);
+Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
 int Reflect_Menu(void);
 void SetIMPosition(void);
 void SetKEYBCP();
@@ -81,6 +84,8 @@ void SwitchLanguage(int oldcp, int newcp, bool confirm);
 void CALLBACK_DeAllocate(Bitu in), DOSBox_ConsolePauseWait();
 void GFX_SetTitle(int32_t cycles, int frameskip, Bits timing, bool paused);
 bool isDBCSCP(), InitCodePage(), isKanji1(uint8_t chr), shiftjis_lead_byte(int c), sdl_wait_on_error();
+bool CheckDBCSCP(int32_t codepage);
+void Load_Language(std::string name);
 
 Bitu call_shellstop = 0;
 /* Larger scope so shell_del autoexec can use it to
@@ -862,10 +867,20 @@ void DOS_Shell::Prepare(void) {
 				if (r!=NULL) *r=0;
 				country = atoi(trim(countrystr));
 				int32_t newCP = r==NULL||IS_PC98_ARCH||IS_JEGA_ARCH||IS_DOSV?dos.loaded_codepage:atoi(trim(r+1));
-                if (control->opt_langcp && msgcodepage>0 && isSupportedCP(msgcodepage) && msgcodepage != newCP)
-                    newCP = msgcodepage;
-				if (r!=NULL) *r=',';
-                if (!IS_PC98_ARCH&&!IS_JEGA_ARCH) {
+                if(!isSupportedCP(newCP)) {
+                    newCP = dos.loaded_codepage;
+                    WriteOut(MSG_Get("SHELL_CMD_CHCP_INVALID"), trim(r+1));
+                    return;
+                }
+                CHCPChangecodepage = true;
+                if (r!=NULL) *r=',';
+                if(IS_DOSV) {
+                    if(IS_JDOSV) newCP = 932;
+                    else if(IS_PDOSV) newCP = 936;
+                    else if(IS_KDOSV) newCP = 949;
+                    else if(IS_TDOSV) newCP = 950;
+                }
+                if (!IS_PC98_ARCH&&!IS_JEGA_ARCH && newCP != dos.loaded_codepage) {
 #if defined(USE_TTF)
                     if (ttf.inUse) {
                         if (newCP) {
@@ -874,25 +889,18 @@ void DOS_Shell::Prepare(void) {
                             if (missing > 0) WriteOut(MSG_Get("SHELL_CMD_CHCP_MISSING"), missing);
                         }
                         else if (r!=NULL) WriteOut(MSG_Get("SHELL_CMD_CHCP_INVALID"), trim(r+1));
-                    } else
-#endif
-                    if (!newCP && IS_DOSV) {
-                        if (IS_JDOSV) newCP=932;
-                        else if (IS_PDOSV) newCP=936;
-                        else if (IS_KDOSV) newCP=949;
-                        else if (IS_TDOSV) newCP=950;
                     }
-                    const char* name = DOS_GetLoadedLayout();
-                    if (newCP==932||newCP==936||newCP==949||newCP==950||newCP==951) {
-                        dos.loaded_codepage=newCP;
-                        SetupDBCSTable();
+                    else
+#endif
+                    if(CheckDBCSCP(newCP)) {
+                        int missing = toSetCodePage(this, newCP, control->opt_fastlaunch ? 1 : 0);
+                    }
+                    if(dos.loaded_codepage == newCP) {
                         runRescan("-A -Q");
-                        DOSBox_SetSysMenu();
-                    } else if (control->opt_langcp && !name && (layout.empty() || layout=="auto"))
-                        SetKEYBCP();
+                        //Load_Language("");
+                    }
                 }
-                //if (lastmsgcp && lastmsgcp != dos.loaded_codepage) SwitchLanguage(lastmsgcp, dos.loaded_codepage, true);
-                if (msgcodepage && msgcodepage != dos.loaded_codepage) SwitchLanguage(dos.loaded_codepage, msgcodepage, true);
+                CHCPChangecodepage = false;
             }
 			if (country>0&&!control->opt_noconfig) {
 				countryNo = country;

@@ -52,7 +52,7 @@ void SwitchLanguage(int oldcp, int newcp, bool confirm);
 Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
 void MSG_Init(), JFONT_Init(), runRescan(const char *str);
 extern int tryconvertcp, toSetCodePage(DOS_Shell *shell, int newCP, int opt);
-extern bool jfont_init;
+extern bool jfont_init, loadlangcp;
 extern int msgcodepage;
 
 static FILE* OpenDosboxFile(const char* name) {
@@ -1487,10 +1487,10 @@ public:
 					layoutname = "bg241";
 					break; */
 				case 1028: // Taiwan, CP 950, Alt CP 951
-					if (tryconvertcp == 1) {
+					//if (tryconvertcp == 1) {
 						layoutname = "us";
 						tocp = 950;
-					}
+					//}
 					break;
 				case 1029: // Czech Republic, CP 852, Alt CP 850
 					layoutname = "cz243";
@@ -1533,10 +1533,10 @@ public:
 					wants_dos_codepage = GetDefaultCP();
 					break;
 				case 1041: // Japan, CP 932
-					if (tryconvertcp == 1) {
+					//if (tryconvertcp == 1) {
 						layoutname = "jp";
 						tocp = 932;
-					}
+					//}
 					break;
 				case 1042: // Korea, CP 949
 					if (tryconvertcp == 1) {
@@ -1681,16 +1681,21 @@ public:
 					wants_dos_codepage = GetDefaultCP();
 					break;
 				default:
-					break;
+                    layoutname = "us";
+                    wants_dos_codepage = 437;
+                    break;
 			}
-		}
-        else if(!strncmp(layoutname, "none", 4)) {
+#else
             layoutname = "us";
             wants_dos_codepage = 437;
 #endif
         }
-
-		bool extract_codepage = !tocp;
+        else if(!strncmp(layoutname, "none", 4)) {
+            layoutname = "us";
+            wants_dos_codepage = 437;
+        }
+        uint16_t cpbak = dos.loaded_codepage;
+        bool extract_codepage = !tocp;
 		if (wants_dos_codepage>0) {
 			if ((loaded_layout->read_codepage_file("auto", (int32_t)wants_dos_codepage)) == KEYB_NOERROR) {
 				// preselected codepage was successfully loaded
@@ -1716,17 +1721,18 @@ public:
 				LOG_MSG("DOS keyboard layout loaded with main language code %s for layout %s",lcode,layoutname);
 			}
 		}
+        if(loadlangcp) loaded_layout->read_keyboard_file("auto", dos.loaded_codepage);
         if (tocp && !IS_PC98_ARCH) {
             if((dos.loaded_codepage == 932 || tocp == 932) && (!strcmp(layoutname, "jp106") || !strcmp(layoutname, "jp"))) loaded_layout->read_keyboard_file(layoutname, 932);
 
             uint16_t cpbak = dos.loaded_codepage;
 #if defined(USE_TTF)
             if (ttf.inUse)
-                toSetCodePage(NULL, tocp, -1);
+                toSetCodePage(NULL, loadlangcp?msgcodepage:tocp, -1);
             else
 #endif
             {
-                dos.loaded_codepage = tocp;
+                dos.loaded_codepage = loadlangcp?msgcodepage:tocp;
                 MSG_Init();
                 DOSBox_SetSysMenu();
                 if (!jfont_init && isDBCSCP()) JFONT_Init();
@@ -1737,10 +1743,6 @@ public:
                     UpdateSDLDrawTexture();
 #endif
             }
-        }
-        if(msgcodepage) {
-            SwitchLanguage(dos.loaded_codepage, msgcodepage, false);
-            DOS_ChangeCodepage(msgcodepage, "auto");
         }
     }
 

@@ -78,6 +78,8 @@ bool OpenGL_using(void), Direct3D_using(void);
 void DOSBox_SetSysMenu(void), GFX_OpenGLRedrawScreen(void), InitFontHandle(void), DOSV_FillScreen(void), refreshExtChar(void), Add_VFiles(bool usecp), SetAlpha(double alpha), SetWindowTransparency(int trans);
 void MenuBrowseProgramFile(void), OutputSettingMenuUpdate(void), aspect_ratio_menu(void), update_pc98_clock_pit_menu(void), AllocCallback1(void), AllocCallback2(void), ToggleMenu(bool pressed);
 extern int tryconvertcp, Reflect_Menu(void);
+extern bool loadlangnew;
+
 
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
@@ -7092,6 +7094,7 @@ bool DOSBOX_parse_argv() {
         }
         else if (optname == "lang" || optname == "langcp") {
             if (!control->cmdline->NextOptArgv(control->opt_lang)) return false;
+            loadlangnew = true;
             if (optname == "langcp") control->opt_langcp = true;
         }
         else if (optname == "fastbioslogo") {

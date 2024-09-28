@@ -114,6 +114,11 @@ void runBoot(const char *str), runMount(const char *str), runImgmount(const char
 void getdrivezpath(std::string &path, std::string const& dirname), drivezRegister(std::string const& path, std::string const& dir, bool usecp), UpdateDefaultPrinterFont(void);
 std::string GetDOSBoxXPath(bool withexe=false);
 FILE *testLoadLangFile(const char *fname);
+bool loadlangnew = false;
+extern bool loadlangcp;
+Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
+void SwitchLanguage(int oldcp, int newcp, bool confirm);
+bool CheckDBCSCP(int32_t codepage);
 
 #if defined(OS2)
 #define INCL DOSFILEMGR
@@ -201,24 +206,6 @@ void DetachFromBios(imageDisk* image) {
                 imageDiskList[index]->Release();
                 imageDiskChange[index] = true;
                 imageDiskList[index] = NULL;
-            }
-        }
-    }
-}
-
-void SwitchLanguage(int oldcp, int newcp, bool confirm) {
-    (void)oldcp; //unused
-    auto iterold = langcp_map.find(lastmsgcp), iternew = langcp_map.find(newcp);
-    std::string langold = iterold != langcp_map.end() ? iterold->second : "", langnew = iternew != langcp_map.end() ? iternew->second : "";
-    if (loadlang && langnew.size() && strcasecmp(langold.c_str(), langnew.c_str())) {
-        FILE *file = testLoadLangFile(langnew.c_str());
-        if (file) {
-            fclose(file);
-            std::string msg = "You have changed the active code page to " + std::to_string(newcp) + ". Do you want to load language file " + langnew + " for this code page?";
-            if (!confirm || systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno","question", 2)) {
-                SetVal("dosbox", "language", langnew);
-                Load_Language(langnew);
-                lastmsgcp = newcp;
             }
         }
     }
@@ -1355,21 +1342,14 @@ public:
                     }
 #endif
                     else {
-                        MSG_Init();
-                        DOSBox_SetSysMenu();
-                        if (isDBCSCP()) {
-                            ShutFontHandle();
-                            InitFontHandle();
-                            JFONT_Init();
-                        }
-                        SetupDBCSTable();
-                        runRescan("-A -Q");
+                        dos.loaded_codepage = cpbak;
+                        SwitchLanguage(cpbak, cp, false);
+                        toSetCodePage(NULL, cp, CheckDBCSCP(cp)? -1: 0);
 #if C_OPENGL && DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW
                         if (OpenGL_using() && control->opt_lang.size() && lastcp && lastcp != dos.loaded_codepage)
                             UpdateSDLDrawTexture();
 #endif
                     }
-                    SwitchLanguage(cpbak, cp, false);
                 }
             }
 #elif defined (OS2)
