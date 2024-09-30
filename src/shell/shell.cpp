@@ -71,7 +71,6 @@ Bitu call_int23 = 0;
 
 std::string GetDOSBoxXPath(bool withexe=false);
 const char* DOS_GetLoadedLayout(void);
-Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
 int Reflect_Menu(void);
 void SetIMPosition(void);
 void SetKEYBCP();

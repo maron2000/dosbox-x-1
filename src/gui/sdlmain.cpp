@@ -67,6 +67,7 @@ extern bool force_load_state, force_conversion;
 extern bool pc98_force_ibm_layout, gbk, chinasea;
 extern bool inshell, enable_config_as_shell_commands;
 extern bool switchttf, ttfswitch, switch_output_from_ttf;
+extern bool skip_loadmessagefile;
 bool checkmenuwidth = false;
 bool dos_kernel_disabled = true;
 bool winrun=false, use_save_file=false;
@@ -9059,7 +9060,9 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
         /* finally, the mapper */
         MAPPER_Init();
         AllocCallback2();
+        skip_loadmessagefile = true;
         MSG_Init();
+        skip_loadmessagefile = false;
 
         /* stop at this point, and show the configuration tool/mapper editor, if instructed */
         if (control->opt_startui) {

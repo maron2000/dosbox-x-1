@@ -116,9 +116,13 @@ std::string GetDOSBoxXPath(bool withexe=false);
 FILE *testLoadLangFile(const char *fname);
 bool loadlangnew = false;
 extern bool loadlangcp;
+Bitu DOS_SwitchKeyboardLayout(const char* new_layout, int32_t& tried_cp);
+Bitu DOS_LoadKeyboardLayout(const char* layoutname, int32_t codepage, const char* codepagefile);
+Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage);
 Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
+const char* DOS_GetLoadedLayout(void);
 void SwitchLanguage(int oldcp, int newcp, bool confirm);
-bool CheckDBCSCP(int32_t codepage);
+bool CheckDBCSCP(int32_t codepage), TTF_using(void);
 
 #if defined(OS2)
 #define INCL DOSFILEMGR
@@ -6912,12 +6916,6 @@ void runImgmount(const char *str) {
 	imgmount.Run();
 }
 
-Bitu DOS_SwitchKeyboardLayout(const char* new_layout, int32_t& tried_cp);
-Bitu DOS_LoadKeyboardLayout(const char * layoutname, int32_t codepage, const char * codepagefile);
-Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage);
-Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
-const char* DOS_GetLoadedLayout(void);
-
 class KEYB : public Program {
 public:
     void Run(void) override;
@@ -6939,22 +6937,8 @@ void KEYB::Run(void) {
             const char* layout_name = DOS_GetLoadedLayout();
             if(tocp && !IS_PC98_ARCH) {
                 dos.loaded_codepage = tocp;
-#if defined(USE_TTF)
-                if(ttf.inUse) {
-                    dos.loaded_codepage = cpbak;
+                if((TTF_using() && isSupportedCP(tocp)) || !TTF_using()) {
                     toSetCodePage(NULL, tocp, -1);
-                }
-                else
-#endif
-                {
-                    MSG_Init();
-                    DOSBox_SetSysMenu();
-                    if(isDBCSCP()) {
-                        ShutFontHandle();
-                        InitFontHandle();
-                        JFONT_Init();
-                    }
-                    SetupDBCSTable();
                     runRescan("-A -Q");
 #if C_OPENGL && DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW
                     if(OpenGL_using() && control->opt_lang.size() && lastcp && lastcp != dos.loaded_codepage)

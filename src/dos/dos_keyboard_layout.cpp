@@ -1419,13 +1419,18 @@ Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage) {
         return kerrcode;
     }
     // Everything went fine, switch to new layout
+    delete loaded_layout;
     loaded_layout = temp_layout;
     return KEYB_NOERROR;
 }
 
 Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile) {
     // try to read the layout for the specified codepage
-    Bitu kerrcode = loaded_layout->read_codepage_file(codepagefile, codepage);
+    Bitu kerrcode;
+    if(loaded_layout)kerrcode = loaded_layout->read_codepage_file(codepagefile, codepage);
+    else {
+        kerrcode = DOS_LoadKeyboardLayout("us", codepage, "auto");
+    }
     if(kerrcode) {
         return kerrcode;
     }

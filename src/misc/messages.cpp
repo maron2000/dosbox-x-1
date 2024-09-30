@@ -53,9 +53,9 @@ Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage);
 Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
 Bitu DOS_LoadKeyboardLayout(const char* layoutname, int32_t codepage, const char* codepagefile);
 void Load_Language(std::string name);
-bool CheckDBCSCP(int32_t codepage);
+bool CheckDBCSCP(int32_t codepage), TTF_using(void);
 bool loadlangcp = false;
-extern bool loadlangnew;
+extern bool loadlangnew, CHCPChangecodepage;
 
 #define LINE_IN_MAXLEN 2048
 
@@ -99,6 +99,10 @@ bool InitCodePage() {
             dos.loaded_codepage = msgcodepage;
             return true;
         }
+        if(msgcodepage > 0) {
+            dos.loaded_codepage = msgcodepage;
+            return true;
+        }
         Section_prop *section = static_cast<Section_prop *>(control->GetSection("config"));
         if (section!=NULL && !control->opt_noconfig && !IS_PC98_ARCH && !IS_JEGA_ARCH && !IS_DOSV) {
             char *countrystr = (char *)section->Get_string("country"), *r=strchr(countrystr, ',');
@@ -109,10 +113,6 @@ bool InitCodePage() {
                     return true;
                 }
             }
-        }
-        if (msgcodepage>0) {
-            dos.loaded_codepage = msgcodepage;
-            return true;
         }
     }
     if (!dos.loaded_codepage) {
@@ -211,7 +211,7 @@ void AddMessages() {
 // True if specified codepage is a DBCS codepage
 bool CheckDBCSCP(int32_t codepage) {
     if(codepage == 932 || codepage == 936 || codepage == 949 || codepage == 950 || codepage == 951) {
-        LOG_MSG("CheckDBCSCP: Codepage %d true", codepage);
+        //LOG_MSG("CheckDBCSCP: Codepage %d true", codepage);
         return true;
     }
     else return false;
@@ -271,9 +271,12 @@ FILE *testLoadLangFile(const char *fname) {
     return mfile;
 }
 
+void initcodepagefont(void);
 char loaded_fname[LINE_IN_MAXLEN + 1024];
+bool skip_loadmessagefile = false;
 void LoadMessageFile(const char * fname) {
-	if (!fname) return;
+    if(skip_loadmessagefile) return;
+    if (!fname) return;
 	if(*fname=='\0') return; //empty string=no languagefile
     if(!loadlangnew) return; //load languagefile only when asked to
     if (!strcmp(fname, loaded_fname)){
@@ -285,7 +288,7 @@ void LoadMessageFile(const char * fname) {
 
 	FILE * mfile=testLoadLangFile(fname);
 	/* This should never happen and since other modules depend on this use a normal printf */
-	if (!mfile) {
+	if (mfile == NULL) {
 		std::string message="Could not load language message file '"+std::string(fname)+"'. The default language will be used.";
 		systemmessagebox("Warning", message.c_str(), "ok","warning", 1);
 		SetVal("dosbox", "language", "");
@@ -305,7 +308,7 @@ void LoadMessageFile(const char * fname) {
     int cp=dos.loaded_codepage;
     if (!dos.loaded_codepage) res=InitCodePage();
 	while(fgets(linein, LINE_IN_MAXLEN+1024, mfile)) {
-		/* Parse the read line */
+        /* Parse the read line */
 		/* First remove characters 10 and 13 from the line */
 		char * parser=linein;
 		char * writer=linein;
@@ -337,12 +340,15 @@ void LoadMessageFile(const char * fname) {
                                 return;
                         }
                         else {
+                            if(TTF_using() && !isSupportedCP(c)) {
+                                LOG_MSG("Codepage %d not supported in TTF mode", c);
+                                return;
+                            }
                             std::string msg = "The specified language file uses code page " + std::to_string(c) + ". Do you want to change to this code page accordingly?";
-                            if(control->opt_langcp || uselangcp || !loadlang || (loadlang && systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno", "question", 1))){
+                            if(control->opt_langcp || uselangcp || CHCPChangecodepage || !loadlang || (loadlang && systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno", "question", 1))){
                                 loadlangcp = true;
                                 msgcodepage = c;
-                                if(CheckDBCSCP(c)) int missing = toSetCodePage(NULL, c, 0);
-                                else Bitu keyb_error = DOS_ChangeCodepage(c, "auto");
+                                if((TTF_using() && isSupportedCP(c))|| !TTF_using()) int missing = toSetCodePage(NULL, c, (loadlangnew && dos.loaded_codepage != msgcodepage)?-1:0);
                                 if (c == 950 && !chinasea) makestdcp950table();
                                 if (c == 951 && chinasea) makeseacp951table();
                                 lastmsgcp = c;
@@ -400,27 +406,16 @@ void LoadMessageFile(const char * fname) {
     menu_update_dynamic();
     menu_update_autocycle();
     update_bindbutton_text();
-    dos.loaded_codepage=cp;
-    if (loadlangcp && msgcodepage>0 && isSupportedCP(msgcodepage)) {
+    if (loadlangcp && msgcodepage>0) {
         if (!IS_DOSV && !IS_JEGA_ARCH) {
-            if(CheckDBCSCP(msgcodepage)) {
-                toSetCodePage(NULL, msgcodepage, -2);
-                dos.loaded_codepage = msgcodepage;
-                ShutFontHandle();
-                InitFontHandle();
-                JFONT_Init();
-                SetupDBCSTable();
+            if(!TTF_using() || (TTF_using() && isSupportedCP(msgcodepage))) {
+                toSetCodePage(NULL, msgcodepage, (loadlangnew && msgcodepage != dos.loaded_codepage)?-1:-2);
             }
-            else {
-                Bitu keyb_error = DOS_ChangeCodepage(msgcodepage, "auto");
-                if(keyb_error == KEYB_NOERROR) dos.loaded_codepage = msgcodepage;
-                DOSBox_SetSysMenu();
+            DOSBox_SetSysMenu();
 #if C_OPENGL && DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW
-                if (OpenGL_using() && control->opt_lang.size() && lastcp && lastcp != dos.loaded_codepage)
-                    UpdateSDLDrawTexture();
+            if (OpenGL_using() && control->opt_lang.size() && lastcp && lastcp != dos.loaded_codepage)
+                UpdateSDLDrawTexture();
 #endif
-            }
-            SetKEYBCP();
         }
     }
     refreshExtChar();
@@ -511,7 +506,7 @@ void MSG_Init() {
 	if (control->opt_lang != "") {
 		LoadMessageFile(control->opt_lang.c_str());
 		//SetVal("dosbox", "language", control->opt_lang.c_str());
-        if (control->opt_langcp && msgcodepage>0 && isSupportedCP(msgcodepage)) {
+        if (control->opt_langcp && msgcodepage>0) {
             Section_prop *sec = static_cast<Section_prop *>(control->GetSection("config"));
             char cstr[20];
             cstr[0] = 0;
@@ -543,11 +538,14 @@ void MSG_Init() {
             loadlangnew = true;
             std::string path = pathprop->realpath;
             ResolvePath(path);
-            if(testLoadLangFile(path.c_str()))
+            if(testLoadLangFile(path.c_str())) {
+                loadlangnew = true;
                 LoadMessageFile(path.c_str());
+            }
             else {
                 std::string lang = section->Get_string("language");
                 if(lang.size()) {
+                    loadlangnew = true;
                     LoadMessageFile(lang.c_str());
                 }
             }

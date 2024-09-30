@@ -140,6 +140,9 @@ extern void MAPPER_AutoType(std::vector<std::string> &sequence, const uint32_t w
 extern void DOS_SetCountry(uint16_t countryNo), DOSV_FillScreen(void);
 std::string GetDOSBoxXPath(bool withexe=false);
 FILE *testLoadLangFile(const char *fname);
+const char* DOS_GetLoadedLayout(void);
+Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
+Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage);
 bool CheckDBCSCP(int32_t codepage);
 bool CHCPChangecodepage = false; // Codepage to be changed by CHCP command
 
@@ -4528,14 +4531,16 @@ extern bool jfont_init, isDBCSCP();
 extern Bitu DOS_LoadKeyboardLayout(const char * layoutname, int32_t codepage, const char * codepagefile);
 void runRescan(const char *str), MSG_Init(), JFONT_Init(), InitFontHandle(), ShutFontHandle(), initcodepagefont(), DOSBox_SetSysMenu();
 int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
-    if (isSupportedCP(newCP)) {
-		dos.loaded_codepage = newCP;
+    if ((TTF_using() && isSupportedCP(newCP))|| !TTF_using()){
+        if(!CheckDBCSCP(newCP)) DOS_ChangeCodepage(newCP, "auto");
+        int32_t oldcp = dos.loaded_codepage;
+        dos.loaded_codepage = newCP;
         int missing = 0;
 #if defined(USE_TTF)
 		missing = TTF_using() ? setTTFCodePage() : 0;
 #endif
         if (!TTF_using()) initcodepagefont();
-        if (dos.loaded_codepage==437 && DOS_GetLoadedLayout() == NULL) DOS_LoadKeyboardLayout("us", 437, "auto");
+        //if (dos.loaded_codepage==437 && DOS_GetLoadedLayout() == NULL) DOS_LoadKeyboardLayout("us", 437, "auto");
         if (opt==-1) {
             MSG_Init();
 #if DOSBOXMENU_TYPE == DOSBOXMENU_HMENU
@@ -4551,8 +4556,8 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
             ShutFontHandle();
             InitFontHandle();
             JFONT_Init();
+            SetupDBCSTable();
         }
-        SetupDBCSTable();
         runRescan("-A -Q");
 #if defined(USE_TTF)
         if ((opt==-1||opt==-2)&&TTF_using()) {
@@ -4572,10 +4577,6 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
     }
     return -1;
 }
-
-const char* DOS_GetLoadedLayout(void);
-Bitu DOS_ChangeCodepage(int32_t codepage, const char* codepagefile);
-Bitu DOS_ChangeKeyboardLayout(const char* layoutname, int32_t codepage);
 
 void DOS_Shell::CMD_CHCP(char * args) {
 	HELP("CHCP");
@@ -4601,15 +4602,11 @@ void DOS_Shell::CMD_CHCP(char * args) {
     int32_t cp = dos.loaded_codepage;
     Bitu keyb_error;
     if(n == 1) {
-        if(CheckDBCSCP(newCP)
-#if defined(USE_TTF)
-            || (ttf.inUse && isSupportedCP(newCP))
-#endif
-            ) {
+        if(!TTF_using()|| (TTF_using() && isSupportedCP(newCP))){
             CHCPChangecodepage = true;
             SwitchLanguage(cp, newCP, true);
-            missing = toSetCodePage(this, newCP, loadlangnew?-1:0);
-            if(missing > 0) WriteOut(MSG_Get("SHELL_CMD_CHCP_MISSING"), missing);
+            missing = toSetCodePage(this, newCP, loadlangnew ? -1 : 0);
+            if (missing > 0) WriteOut(MSG_Get("SHELL_CMD_CHCP_MISSING"), missing);
         }
         else {
 #if defined(USE_TTF)
@@ -4618,18 +4615,9 @@ void DOS_Shell::CMD_CHCP(char * args) {
                 LOG_MSG("CHCP: Codepage %d not supported for TTF output", newCP);
                 return;
             }
+            else
 #endif
-            keyb_error = DOS_ChangeCodepage(newCP, "auto");
-            if(keyb_error == KEYB_NOERROR) {
-                CHCPChangecodepage = true;
-                SwitchLanguage(cp, newCP, true);
-/**
-                if(layout_name != NULL) {
-                    keyb_error = DOS_ChangeKeyboardLayout(layout_name, cp);
-                }
-*/
-            }
-            else {
+            {
                 WriteOut(MSG_Get("SHELL_CMD_CHCP_INVALID"), StripArg(args));
                 return;
             }
@@ -4642,10 +4630,11 @@ void DOS_Shell::CMD_CHCP(char * args) {
         if(*buff == ':' && strchr(StripArg(args), ':')) {
             std::string name = buff + 1;
             if(name.empty() && iter != langcp_map.end()) name = iter->second;
-            if(CheckDBCSCP(newCP)) {
+            if(!TTF_using() || (TTF_using() && isSupportedCP(newCP))) {
                 CHCPChangecodepage = true;
                 missing = toSetCodePage(this, newCP, -1);
-                if(missing > -1) SwitchLanguage(cp, newCP, true);
+                loadlangnew = true;
+                Load_Language(name);
                 if(missing > 0) WriteOut(MSG_Get("SHELL_CMD_CHCP_MISSING"), missing);
             }
 #if defined(USE_TTF)
