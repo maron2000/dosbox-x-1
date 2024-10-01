@@ -1650,7 +1650,7 @@ bool ttf_halfwidth_katakana_callback(DOSBoxMenu * const menu,DOSBoxMenu::item * 
     halfwidthkana=!halfwidthkana;
     SetVal("ttf", "halfwidthkana", halfwidthkana?"true":"false");
     mainMenu.get_item("ttf_halfwidthkana").check(halfwidthkana).refresh_item(mainMenu);
-    setTTFCodePage();
+    if(TTF_using()) setTTFCodePage();
     resetFontSize();
     return true;
 }

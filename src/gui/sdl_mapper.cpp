@@ -5273,7 +5273,7 @@ void MAPPER_LosingFocus(void) {
 void MAPPER_ReleaseAllKeys(void) {
     for (CEventVector_it evit=events.begin();evit!=events.end();++evit) {
         if ((*evit)->active) {
-            LOG_MSG("Release");
+            LOG(LOG_GUI,LOG_DEBUG)("Mapper: Release all keys");
             (*evit)->Active(false);
         }
     }

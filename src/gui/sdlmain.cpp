@@ -701,6 +701,7 @@ void UpdateWindowDimensions(Bitu width, Bitu height)
     currentWindowHeight = height;
 }
 
+double pixels_width=0, pixels_height=0, mm_width=0, mm_height=0, pixels_x=0, pixels_y=0, dpi_width=0, dpi_height=0;
 void PrintScreenSizeInfo(void) {
 #if 1
     const char *method = "?";
@@ -714,6 +715,15 @@ void PrintScreenSizeInfo(void) {
         default:                                                        break;
     }
 
+    if (screen_size_info.screen_dimensions_pixels.width != pixels_width ||
+        screen_size_info.screen_dimensions_pixels.height != pixels_height ||
+        screen_size_info.screen_position_pixels.x != pixels_x ||
+        screen_size_info.screen_position_pixels.y != pixels_y ||
+        screen_size_info.screen_dimensions_mm.width != mm_width ||
+        screen_size_info.screen_dimensions_mm.height != mm_height ||
+        screen_size_info.screen_dpi.width != dpi_width ||
+        screen_size_info.screen_dpi.height != dpi_height
+    )
     LOG_MSG("Screen report: Method '%s' (%.3f x %.3f pixels) at (%.3f x %.3f) (%.3f x %.3f mm) (%.3f x %.3f in) (%.3f x %.3f DPI)",
             method,
 
@@ -731,6 +741,15 @@ void PrintScreenSizeInfo(void) {
 
             screen_size_info.screen_dpi.width,
             screen_size_info.screen_dpi.height);
+    pixels_width = screen_size_info.screen_dimensions_pixels.width;
+    pixels_height = screen_size_info.screen_dimensions_pixels.height;
+    pixels_x = screen_size_info.screen_position_pixels.x;
+    pixels_y = screen_size_info.screen_position_pixels.y;
+    mm_width = screen_size_info.screen_dimensions_mm.width;
+    mm_height = screen_size_info.screen_dimensions_mm.height;
+    dpi_width = screen_size_info.screen_dpi.width;
+    dpi_height = screen_size_info.screen_dpi.height;
+
 #endif
 }
 

@@ -2818,7 +2818,7 @@ static Bitu DOS_21Handler(void) {
                     int cpbak = dos.loaded_codepage;
                     dos.loaded_codepage = reg_bx;
 #if defined(USE_TTF)
-                    setTTFCodePage();
+                    if(TTF_using()) setTTFCodePage();
 #endif
                     if (loadlang) {
                         MSG_Init();

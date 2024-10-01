@@ -348,7 +348,7 @@ void LoadMessageFile(const char * fname) {
                             if(control->opt_langcp || uselangcp || CHCPChangecodepage || !loadlang || (loadlang && systemmessagebox("DOSBox-X language file", msg.c_str(), "yesno", "question", 1))){
                                 loadlangcp = true;
                                 msgcodepage = c;
-                                if((TTF_using() && isSupportedCP(c))|| !TTF_using()) int missing = toSetCodePage(NULL, c, (loadlangnew && dos.loaded_codepage != msgcodepage)?-1:0);
+                                if((TTF_using() && isSupportedCP(c))|| !TTF_using()) int missing = toSetCodePage(NULL, c, loadlangnew?-1:-2);
                                 if (c == 950 && !chinasea) makestdcp950table();
                                 if (c == 951 && chinasea) makeseacp951table();
                                 lastmsgcp = c;
@@ -409,7 +409,7 @@ void LoadMessageFile(const char * fname) {
     if (loadlangcp && msgcodepage>0) {
         if (!IS_DOSV && !IS_JEGA_ARCH) {
             if(!TTF_using() || (TTF_using() && isSupportedCP(msgcodepage))) {
-                toSetCodePage(NULL, msgcodepage, (loadlangnew && msgcodepage != dos.loaded_codepage)?-1:-2);
+                toSetCodePage(NULL, msgcodepage, loadlangnew?-1:-2);
             }
             DOSBox_SetSysMenu();
 #if C_OPENGL && DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW
@@ -439,7 +439,7 @@ void SwitchLanguage(int oldcp, int newcp, bool confirm) {
                 loadlangnew = true;
                 lastmsgcp = newcp;
                 control->opt_lang = langnew.c_str();
-                Load_Language(langnew.c_str());
+                //Load_Language(langnew.c_str());
             }
         }
     }

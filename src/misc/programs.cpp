@@ -749,7 +749,7 @@ void Load_Language(std::string name) {
 //    if (!uselangcp && !incall) {
 //        int oldmsgcp = msgcodepage;
 //        msgcodepage = dos.loaded_codepage;
-        SetKEYBCP();
+//          SetKEYBCP();
 //        msgcodepage = oldmsgcp;
 //    }
 }

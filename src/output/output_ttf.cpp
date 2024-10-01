@@ -529,12 +529,14 @@ int setTTFMap(bool changecp) {
     return notMapped;
 }
 
+int oldcp = 0;
 int setTTFCodePage() {
+    int cp = dos.loaded_codepage;
+    if (cp && cp == oldcp) return 0;
     if (!copied) {
         memcpy(cpMap_copy,cpMap,sizeof(cpMap[0])*256);
         copied=true;
     }
-    int cp = dos.loaded_codepage;
     if (IS_PC98_ARCH) {
         static_assert(sizeof(cpMap[0])*256 >= sizeof(cpMap_PC98), "sizeof err 1");
         static_assert(sizeof(cpMap[0]) == sizeof(cpMap_PC98[0]), "sizeof err 2");
@@ -543,7 +545,7 @@ int setTTFCodePage() {
     }
 
     if (cp) {
-        LOG_MSG("Loaded system codepage: %d\n", cp);
+        LOG_MSG("output_ttf: Loaded system codepage: %d\n", cp);
         int notMapped = setTTFMap(true);
         if (strcmp(RunningProgram, "LOADLIN") && !dos_kernel_disabled)
             initcodepagefont();
@@ -553,6 +555,7 @@ int setTTFCodePage() {
         if(IS_JEGA_ARCH) memcpy(cpMap,cpMap_AX,sizeof(cpMap[0])*32);
         if (cp == 932 && halfwidthkana) resetFontSize();
         refreshExtChar();
+        oldcp = cp;
         return notMapped;
     } else
         return -1;
@@ -626,6 +629,7 @@ void OUTPUT_TTF_Select(int fsize) {
         change_output(switchoutput == -1 ? 0 : switchoutput);
         return;
     }
+    initttf = true;
     int fontSize = 0;
     int winPerc = 0;
     if (fsize==3)
@@ -638,7 +642,6 @@ void OUTPUT_TTF_Select(int fsize) {
         const char * fbName = ttf_section->Get_string("fontbold");
         const char * fiName = ttf_section->Get_string("fontital");
         const char * fbiName = ttf_section->Get_string("fontboit");
-        LOG_MSG("SDL: TTF activated %s", fName);
         force_conversion = true;
         int cp = dos.loaded_codepage;
         bool trysgf = false;
@@ -646,6 +649,7 @@ void OUTPUT_TTF_Select(int fsize) {
             std::string mtype(static_cast<Section_prop *>(control->GetSection("dosbox"))->Get_string("machine"));
             if (IS_PC98_ARCH||mtype.substr(0, 4)=="pc98"||(!notrysgf&&InitCodePage()&&isDBCSCP())) trysgf = true;
         }
+        LOG_MSG("SDL: TTF activated %s", fName);
         force_conversion = false;
         dos.loaded_codepage = cp;
         if (trysgf) failName = "SarasaGothicFixed";

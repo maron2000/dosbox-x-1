@@ -4530,10 +4530,11 @@ void DOS_Shell::CMD_COUNTRY(char * args) {
 extern bool jfont_init, isDBCSCP();
 extern Bitu DOS_LoadKeyboardLayout(const char * layoutname, int32_t codepage, const char * codepagefile);
 void runRescan(const char *str), MSG_Init(), JFONT_Init(), InitFontHandle(), ShutFontHandle(), initcodepagefont(), DOSBox_SetSysMenu();
+static int32_t lastsetcp = 0;
 int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
+    //if(dos.loaded_codepage == newCP) return 0;
     if ((TTF_using() && isSupportedCP(newCP))|| !TTF_using()){
         if(!CheckDBCSCP(newCP)) DOS_ChangeCodepage(newCP, "auto");
-        int32_t oldcp = dos.loaded_codepage;
         dos.loaded_codepage = newCP;
         int missing = 0;
 #if defined(USE_TTF)
@@ -4541,6 +4542,7 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
 #endif
         if (!TTF_using()) initcodepagefont();
         //if (dos.loaded_codepage==437 && DOS_GetLoadedLayout() == NULL) DOS_LoadKeyboardLayout("us", 437, "auto");
+        //LOG_MSG("toSetCodePage opt=%d, loadlangnew=%d", opt, loadlangnew?1:0);
         if (opt==-1) {
             MSG_Init();
 #if DOSBOXMENU_TYPE == DOSBOXMENU_HMENU
@@ -4571,6 +4573,10 @@ int toSetCodePage(DOS_Shell *shell, int newCP, int opt) {
             }
         }
 #endif
+        if (newCP != lastsetcp) {
+            LOG_MSG("Codepage set to %d", newCP);
+            lastsetcp = newCP;
+        }
         return missing;
     } else if (opt<1 && shell) {
        shell->WriteOut(MSG_Get("SHELL_CMD_CHCP_INVALID"), std::to_string(newCP).c_str());
@@ -4652,16 +4658,6 @@ void DOS_Shell::CMD_CHCP(char * args) {
                 }
             }
 #endif
-            else {
-                keyb_error = DOS_ChangeCodepage(newCP, "auto");
-                if(keyb_error == KEYB_NOERROR) {
-                    if(layout_name != NULL) {
-                        keyb_error = DOS_ChangeKeyboardLayout(layout_name, cp);
-                    }
-                }
-                else
-                    WriteOut(MSG_Get("SHELL_CMD_CHCP_INVALID"), StripArg(args));
-            }
             if(name.size() && dos.loaded_codepage == newCP) {
                 SetVal("dosbox", "language", name);
                 Load_Language(name);
