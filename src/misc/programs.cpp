@@ -222,92 +222,138 @@ void Program::ChangeToLongCmd() {
 
 bool resetcolor = false;
 static char last_written_character = 0;//For 0xA to OxD 0xA expansion
-void Program::WriteOut(const char * format,...) {
-	uint8_t attr = DOS_GetAnsiAttr();
-	char buf[2048];
-	va_list msg;
-	
-	va_start(msg,format);
-	vsnprintf(buf,2047,format,msg);
-	va_end(msg);
+void Program::WriteOut(const char* format, ...) {
+    uint8_t attr = DOS_GetAnsiAttr(); // Save current ANSI text attributes
+    va_list msg;
 
-	uint16_t size = (uint16_t)strlen(buf);
-	dos.internal_output=true;
-	for(uint16_t i = 0; i < size;i++) {
-		uint8_t out;uint16_t s=1;
-		if (buf[i] == 0xA && last_written_character != 0xD) {
-			out = 0xD;DOS_WriteFile(STDOUT,&out,&s);
-		}
-		last_written_character = (char)(out = (uint8_t)buf[i]);
-		DOS_WriteFile(STDOUT,&out,&s);
-	}
-	dos.internal_output=false;
-	if (resetcolor && attr) DOS_SetAnsiAttr(attr);
-	resetcolor = false;
-	
-//	DOS_WriteFile(STDOUT,(uint8_t *)buf,&size);
+    // Determine the required buffer size
+    va_start(msg, format);
+    int size = vsnprintf(nullptr, 0, format, msg); // Do NOT add +1, we do NOT include null terminator
+    va_end(msg);
+
+    if(size <= 0) return; // If error, do nothing
+
+    std::vector<char> buf(size + 1); // Allocate necessary buffer (+1 for safety, though not used)
+    std::vector<char> out_buf; // Buffer for output with \n → \r\n conversion
+
+    // Format the string into the allocated buffer
+    va_start(msg, format);
+    vsnprintf(buf.data(), buf.size(), format, msg);
+    va_end(msg);
+
+    // Convert \n to \r\n, but exclude the null terminator
+    out_buf.reserve(size * 2); // Reserve worst-case scenario (all '\n' → '\r\n')
+    for(int i = 0; i < size; i++) {
+        if(buf[i] == '\n') {
+            out_buf.push_back('\r');
+        }
+        out_buf.push_back(buf[i]);
+    }
+
+    uint16_t str_size = static_cast<uint16_t>(out_buf.size());
+    dos.internal_output = true;
+
+    // Write the entire buffer at once
+    DOS_WriteFile(STDOUT, reinterpret_cast<uint8_t*>(out_buf.data()), &str_size);
+
+    dos.internal_output = false;
+
+    // Restore ANSI text attributes if needed
+    if(resetcolor && attr) DOS_SetAnsiAttr(attr);
+    resetcolor = false;
+}
+void Program::WriteOut(const char* format, const char* arguments) {
+    // Determine the required buffer size
+    int size = snprintf(nullptr, 0, format, arguments); // Do NOT add +1, we do NOT include null terminator
+    if(size <= 0) return; // If error, do nothing
+
+    std::vector<char> buf(size + 1); // Allocate necessary buffer (+1 for safety, though not used)
+    std::vector<char> out_buf; // Buffer for output with \n → \r\n conversion
+
+    // Format the string safely
+    snprintf(buf.data(), buf.size(), format, arguments);
+
+    // Convert \n to \r\n, but exclude the null terminator
+    out_buf.reserve(size * 2); // Reserve worst-case scenario (all '\n' → '\r\n')
+    for(int i = 0; i < size; i++) {
+        if(buf[i] == '\n') {
+            out_buf.push_back('\r');
+        }
+        out_buf.push_back(buf[i]);
+    }
+
+    uint16_t str_size = static_cast<uint16_t>(out_buf.size());
+    dos.internal_output = true;
+
+    // Write the entire buffer at once
+    DOS_WriteFile(STDOUT, reinterpret_cast<uint8_t*>(out_buf.data()), &str_size);
+
+    dos.internal_output = false;
 }
 
-void Program::WriteOut(const char *format, const char *arguments) {
-	char buf[2048 + CMD_MAXLINE];
-	sprintf(buf,format,arguments);
+int Program::WriteOut_NoParsing(const char* format, bool dbcs) {
+    uint16_t size = (uint16_t)strlen(format);
+    const char* buf = format;
+    char last2 = 0, last3 = 0;
+    int lastcol = 0;
+    int COLS = IS_PC98_ARCH ? 80 : real_readw(BIOSMEM_SEG, BIOSMEM_NB_COLS);
+    uint8_t page = outcon ? real_readb(BIOSMEM_SEG, BIOSMEM_CURRENT_PAGE) : 0;
+    bool lead = false;
+    dos.internal_output = true;
+    int rcount = 0;
 
-	uint16_t size = (uint16_t)strlen(buf);
-	dos.internal_output=true;
-	for(uint16_t i = 0; i < size;i++) {
-		uint8_t out;uint16_t s=1;
-		if (buf[i] == 0xA && last_written_character != 0xD) {
-			out = 0xD;DOS_WriteFile(STDOUT,&out,&s);
-		}
-		last_written_character = (char)(out = (uint8_t)buf[i]);
-		DOS_WriteFile(STDOUT,&out,&s);
-	}
-	dos.internal_output=false;
+    std::vector<uint8_t> out_buf;
+    out_buf.reserve(size * 2); // Worst case: every '\n' becomes '\r\n'
 
-//	DOS_WriteFile(STDOUT,(uint8_t *)buf,&size);
-}
-
-int Program::WriteOut_NoParsing(const char * format, bool dbcs) {
-	uint16_t size = (uint16_t)strlen(format);
-	char const* buf = format;
-	char last2 = 0, last3 = 0;
-	int lastcol = 0, COLS=IS_PC98_ARCH?80:real_readw(BIOSMEM_SEG,BIOSMEM_NB_COLS);
-	uint8_t page=outcon?real_readb(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE):0;
-	bool lead=false;
-	dos.internal_output=true;
-	int rcount = 0;
-	for(uint16_t i = 0; i < size;i++) {
-		uint8_t out;uint16_t s=1;
-		BIOS_NCOLS;
-		if (!CURSOR_POS_COL(page)) last2=last3=0;
-		if (lead) lead = false;
-		else if ((IS_PC98_ARCH || isDBCSCP())
+    for(uint16_t i = 0; i < size; i++) {
+        uint8_t out;
+        //BIOS_NCOLS;
+        if(!CURSOR_POS_COL(page)) last2 = last3 = 0;
+        if(lead) {
+            lead = false;
+        }
+        else if((IS_PC98_ARCH || isDBCSCP())
 #if defined(USE_TTF)
             && dbcs_sbcs
 #endif
-            && dbcs && isKanji1(buf[i])) lead = true;
-		if (buf[i] == 0xA) {
-			if (last_written_character != 0xD) {out = 0xD;DOS_WriteFile(STDOUT,&out,&s);}
-			if (outcon) rcount++;
-		} else if (outcon && lead && CURSOR_POS_COL(page)==COLS-1 && !(TTF_using()
-#if defined(USE_TTF)
-            && autoboxdraw
-#endif
-            && CheckBoxDrawing(last3, last2, last_written_character, buf[i]))) {
-			out = 0xD;DOS_WriteFile(STDOUT,&out,&s);
-			out = 0xA;DOS_WriteFile(STDOUT,&out,&s);
-			rcount++;
-		} else if (outcon && !CURSOR_POS_COL(page) && lastcol == COLS-1)
-			rcount++;
-		lastcol=CURSOR_POS_COL(page);
-		last3=last2;last2=last_written_character;
-		last_written_character = (char)(out = (uint8_t)buf[i]);
-		DOS_WriteFile(STDOUT,&out,&s);
-	}
-	dos.internal_output=false;
-	return rcount;
+            && dbcs && isKanji1(buf[i])) {
+            lead = true;
+        }
 
-//	DOS_WriteFile(STDOUT,(uint8_t *)format,&size);
+        if(buf[i] == 0xA) { // Convert '\n' to '\r\n'
+            if(last_written_character != 0xD) {
+                out_buf.push_back(0xD);
+            }
+            if(outcon) rcount++;
+        }
+        else if(outcon && lead && CURSOR_POS_COL(page) == COLS - 1 &&
+            !(TTF_using()
+#if defined(USE_TTF)
+                && autoboxdraw
+#endif
+                && CheckBoxDrawing(last3, last2, last_written_character, buf[i]))) {
+            out_buf.push_back(0xD);
+            out_buf.push_back(0xA);
+            rcount++;
+        }
+        else if(outcon && !CURSOR_POS_COL(page) && lastcol == COLS - 1) {
+            rcount++;
+        }
+
+        lastcol = CURSOR_POS_COL(page);
+        last3 = last2;
+        last2 = last_written_character;
+        last_written_character = (char)(out = (uint8_t)buf[i]);
+        out_buf.push_back(out);
+    }
+
+    if(!out_buf.empty()) {
+        uint16_t final_size = static_cast<uint16_t>(out_buf.size());
+        DOS_WriteFile(STDOUT, out_buf.data(), &final_size);
+    }
+
+    dos.internal_output = false;
+    return rcount;
 }
 
 static bool LocateEnvironmentBlock(PhysPt &env_base,PhysPt &env_fence,Bitu env_seg) {
