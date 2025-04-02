@@ -625,7 +625,7 @@ private:
 	void Real_INT10_TeletypeOutputAttr(uint8_t chr,uint8_t attr,bool useattr) {
 		//TODO Check if this page thing is correct
 		uint8_t page=real_readb(BIOSMEM_SEG,BIOSMEM_CURRENT_PAGE);
-//		BIOS_NCOLS;BIOS_NROWS;
+		BIOS_NCOLS;BIOS_NROWS;
 		uint8_t cur_row=CURSOR_POS_ROW(page);
 		uint8_t cur_col=CURSOR_POS_COL(page);
 		switch (chr) 
@@ -664,15 +664,13 @@ private:
 			//* Draw the actual Character
             if (IS_PC98_ARCH && (real_readb(0x60, 0x8A) == 1)) {
                 if (con_sjis.take(chr)) {
-                    BIOS_NCOLS;
                     unsigned char cw = con_sjis.doublewide ? 2 : 1;
 
                     if(pc98_column_over || (cw == 2 && (cur_col+cw) > ncols)) {
-                        BIOS_NROWS;
-                        auto defattr = DefaultANSIAttr();
                         pc98_column_over = false;
                         cur_col=0;
                         cur_row++;
+                        auto defattr = DefaultANSIAttr();
                         if(cur_row==nrows) {
                             INT10_ScrollWindow(0,0,(uint8_t)(nrows-1),(uint8_t)(ncols-1),-1,defattr,0);
                             cur_row--;
@@ -692,7 +690,13 @@ private:
                 cur_col++;
             }
 		}
-		
+        if(cur_col >= ncols) {
+            cur_row++; cur_col = 0;
+            if(cur_row == nrows) {
+                INT10_ScrollWindow(0, 0, (uint8_t)(nrows - 1), (uint8_t)(ncols - 1), -1, attr, 0);
+                cur_row--;
+            }
+        }
 		AdjustCursorPosition(cur_col,cur_row);
 		Real_INT10_SetCursorPos(cur_row,cur_col,page);	
 	}//void Real_INT10_TeletypeOutputAttr(uint8_t chr,uint8_t attr,bool useattr) 
