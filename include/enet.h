@@ -40,6 +40,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
+#include <ctype.h>
 
 #define ENET_VERSION_MAJOR 2
 #define ENET_VERSION_MINOR 6
