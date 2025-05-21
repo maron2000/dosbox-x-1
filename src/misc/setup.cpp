@@ -1206,34 +1206,46 @@ Section* Config::GetSectionFromProperty(char const * const prop) const{
 }
 
 
-bool Config::ParseConfigFile(char const * const configfilename) {
-    LOG(LOG_MISC,LOG_DEBUG)("CONFIG: Attempting to load config file #%zu from %s",configfiles.size(),configfilename);
+bool Config::ParseConfigFile(char const* const configfilename) {
+    if(!configfilename) {
+        LOG(LOG_MISC, LOG_ERROR)("CONFIG: configfilename is null");
+        return false;
+    }
 
-    //static bool first_configfile = true;
-    ifstream in(configfilename);
-    if (!in) return false;
-    const char * settings_type;
-    settings_type = (configfiles.size() == 0)? "primary":"additional";
+    LOG(LOG_MISC, LOG_DEBUG)("CONFIG: Attempting to load config file #%zu from %s", configfiles.size(), configfilename);
+
+    std::ifstream in(configfilename);
+    if(!in) {
+        LOG(LOG_MISC, LOG_ERROR)("CONFIG: Could not open config file: %s", configfilename);
+        return false;
+    }
+
+    const char* settings_type = (configfiles.empty()) ? "primary" : "additional";
     configfiles.emplace_back(configfilename);
 
-    LOG(LOG_MISC,LOG_NORMAL)("CONFIG: Loading %s settings from config file %s", settings_type,configfilename);
+    LOG(LOG_MISC, LOG_NORMAL)("CONFIG: Loading %s settings from config file %s", settings_type, configfilename);
 
-    //Get directory from configfilename, used with relative paths.
-    current_config_dir=configfilename;
+    // Get directory from configfilename
+    current_config_dir = configfilename;
     std::string::size_type pos = current_config_dir.rfind(CROSS_FILESPLIT);
-    if (pos == std::string::npos) pos = 0; //No directory then erase string
+    if(pos == std::string::npos) pos = 0;
     current_config_dir.erase(pos);
 
-    string gegevens;
-    Section* currentsection = NULL;
-    Section* testsec = NULL;
-    while (getline(in,gegevens)) {
-        if (gegevens.size()>10&&gegevens.substr(0,10)=="#DOSBOX-X:") gegevens=gegevens.substr(10);
-        if (gegevens.size()>13&&gegevens.substr(0,14)=="#DOSBOX-X-ADV:") gegevens=gegevens.substr(14);
+    std::string gegevens;
+    Section* currentsection = nullptr;
 
-        /* strip leading/trailing whitespace */
+    while(std::getline(in, gegevens)) {
+        // Strip DOSBox-X special tags
+        if(gegevens.size() > 10 && gegevens.substr(0, 10) == "#DOSBOX-X:") {
+            gegevens = gegevens.substr(10);
+        }
+        else if(gegevens.size() > 13 && gegevens.substr(0, 14) == "#DOSBOX-X-ADV:") {
+            gegevens = gegevens.substr(14);
+        }
+
         trim(gegevens);
-        if (!gegevens.size()) continue;
+        if(gegevens.empty())
+            continue;
 
         switch(gegevens[0]) {
         case '\0':
@@ -1241,42 +1253,73 @@ bool Config::ParseConfigFile(char const * const configfilename) {
         case ' ':
         case '\n':
             continue;
+
+        case '[': {
+            std::string::size_type loc = gegevens.find(']');
+            if(loc == std::string::npos)
+                continue;
+
+            std::string section_name = gegevens.substr(1, loc - 1);
+            Section* testsec = GetSection(section_name);
+            currentsection = testsec; // NULL if not recognized
             break;
-        case '[':
-        {
-            string::size_type loc = gegevens.find(']');
-            if (loc == string::npos) continue;
-            gegevens.erase(loc);
-            testsec = GetSection(gegevens.substr(1));
-            currentsection = testsec; /* NTS: If we don't recognize the section we WANT currentsection == NULL so it has no effect */
-            testsec = NULL;
         }
-            break;
+
         case '%':
-            if (strcasecmp(currentsection->GetName(), "autoexec")) continue;
+            if(!currentsection)
+                continue;
+            if(strcasecmp(currentsection->GetName(), "autoexec") != 0)
+                continue;
+            // intentional fallthrough for autoexec
+            // break omitted
+
         default:
+            if(!currentsection)
+                continue;
+
             try {
-                if (currentsection) {
-					bool savedata=!strcasecmp(currentsection->GetName(), "pc98")||!strcasecmp(currentsection->GetName(), "ttf")||!strcasecmp(currentsection->GetName(), "4dos")||!strcasecmp(currentsection->GetName(), "config");
-					if (!currentsection->HandleInputline(gegevens)&&strcasecmp(currentsection->GetName(), "autoexec")) savedata=true;
-					if (savedata) {
-						Section_prop *section = static_cast<Section_prop *>(currentsection);
-						if (section!=NULL&&!(!strcasecmp(currentsection->GetName(), "4dos")&&(!strncasecmp(gegevens.c_str(), "rem=", 4)||!strncasecmp(gegevens.c_str(), "rem ", 4)))) {
-							if (!section->data.empty()) section->data += "\n";
-							section->data += gegevens;
-						}
-					}
-				}
-            } catch(const char* message) {
-                message = nullptr;
-                //EXIT with message
+                const char* sec_name_cstr = currentsection->GetName();
+                std::string sec_name = sec_name_cstr ? sec_name_cstr : "";
+
+                bool is_autoexec = (strcasecmp(sec_name.c_str(), "autoexec") == 0);
+                bool save_data =
+                    strcasecmp(sec_name.c_str(), "pc98") == 0 ||
+                    strcasecmp(sec_name.c_str(), "ttf") == 0 ||
+                    strcasecmp(sec_name.c_str(), "4dos") == 0 ||
+                    strcasecmp(sec_name.c_str(), "config") == 0;
+
+                if(!currentsection->HandleInputline(gegevens) && !is_autoexec)
+                    save_data = true;
+
+                if(save_data) {
+                    Section_prop* section = dynamic_cast<Section_prop*>(currentsection);
+                    if(section) {
+                        bool is_4dos = (strcasecmp(sec_name.c_str(), "4dos") == 0);
+                        bool is_rem = is_4dos &&
+                            (strncasecmp(gegevens.c_str(), "rem=", 4) == 0 ||
+                                strncasecmp(gegevens.c_str(), "rem ", 4) == 0);
+                        if(!is_rem) {
+                            if(!section->data.empty())
+                                section->data += '\n';
+                            section->data += gegevens;
+                        }
+                    }
+                }
+            }
+            catch(const std::exception& e) {
+                LOG(LOG_MISC, LOG_ERROR)("CONFIG: Exception: %s", e.what());
+            }
+            catch(...) {
+                LOG(LOG_MISC, LOG_ERROR)("CONFIG: Unknown exception while parsing config file");
             }
             break;
         }
     }
-    current_config_dir.clear();//So internal changes don't use the path information
+
+    current_config_dir.clear(); // Reset path tracking
     return true;
 }
+
 
 void Config::ParseEnv(char ** envp) {
     for(char** env=envp; *env;env++) {
