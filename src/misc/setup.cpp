@@ -853,34 +853,48 @@ Hex Section_prop::Get_hex(string const& _propname) const {
     return 0;
 }
 
-bool Section_prop::HandleInputline(string const& gegevens) {
-    string str1 = gegevens;
-    string::size_type loc = str1.find('=');
-    if (loc == string::npos) return false;
-    string name = str1.substr(0,loc);
-    string val = str1.substr(loc + 1);
+bool Section_prop::HandleInputline(const std::string& gegevens) {
+    std::string str1 = gegevens;
+    std::string::size_type loc = str1.find('=');
+    if(loc == std::string::npos) return false;
 
-	/* Remove quotes around value */
-	trim(val);
-	string::size_type length = val.length();
-	if (length > 1 &&
-	     ((val[0] == '\"'  && val[length - 1] == '\"' ) ||
-	      (val[0] == '\'' && val[length - 1] == '\''))
-	   ) val = val.substr(1,length - 2);
-    /* trim the results in case there were spaces somewhere */
-    trim(name);trim(val);
-    for(it tel = properties.begin();tel != properties.end();++tel) {
-        if (!strcasecmp((*tel)->propname.c_str(),name.c_str())) {
-            if (!((*tel)->SetValue(val))) return false;
+    std::string name = str1.substr(0, loc);
+    std::string val = str1.substr(loc + 1);
 
-            for (std::list<SectionFunction>::iterator i=onpropchange.begin();i!=onpropchange.end();++i)
-                (*i)(this);
+    // Remove surrounding quotes from the value, if present
+    trim(val);
+    const std::size_t length = val.length();
+    if(length > 1 &&
+        ((val[0] == '"' && val[length - 1] == '"') ||
+            (val[0] == '\'' && val[length - 1] == '\''))) {
+        val = val.substr(1, length - 2);
+    }
+
+    trim(name);
+    trim(val);
+
+    for(it tel = properties.begin(); tel != properties.end(); ++tel) {
+        if(!*tel) continue; // Safeguard: skip null property pointers
+
+        if(!strcasecmp((*tel)->propname.c_str(), name.c_str())) {
+            // Try to set the property value
+            if(!(*tel)->SetValue(val)) {
+                return false; // If setting fails, don't trigger change notifications
+            }
+
+            // Notify listeners about the property change
+            for(auto& func : onpropchange) {
+                func(this);
+            }
 
             return true;
         }
     }
+
+    // Property name not found
     return false;
 }
+
 
 void Section_prop::PrintData(FILE* outfile,int everything,bool norem) {
     /* Now print out the individual section entries */
