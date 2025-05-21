@@ -508,22 +508,42 @@ bool Prop_string::SetValue(std::string const& input) {
     return SetVal(val,false,true)||(!suggested_values.empty()&&!input.size());
 }
 
-bool Prop_string::CheckValue(Value const& in, bool warn) {
-    if (suggested_values.empty()) return true;
-    for(const_iter it = suggested_values.begin();it != suggested_values.end();++it) {
-        if ( (*it) == in) { //Match!
+bool Prop_string::CheckValue(const Value& in, bool warn) {
+    if(suggested_values.empty()) return true;
+
+    // Convert input value to string once to avoid multiple ToString() calls and possible temporary object issues
+    const std::string in_str = in.ToString();
+
+    for(const_iter it = suggested_values.begin(); it != suggested_values.end(); ++it) {
+        const std::string suggestion = it->ToString();
+
+        // Check for exact match
+        if(*it == in) {
             return true;
         }
-        if ((*it).ToString() == "%u") {
-            uint32_t value;
-            if (sscanf(in.ToString().c_str(),"%u",&value) == 1) {
+
+        // Check for a special case: suggested value is "%u" meaning any unsigned integer is valid
+        if(suggestion == "%u") {
+            uint32_t value = 0;
+            // Safely parse the input string as an unsigned integer
+            if(std::sscanf(in_str.c_str(), "%u", &value) == 1) {
                 return true;
             }
         }
     }
-    if (warn) LOG_MSG("\"%s\" is not a valid value for variable: %s.\nIt might now be reset to the default value: %s",in.ToString().c_str(),propname.c_str(),default_value.ToString().c_str());
+
+    // If no valid match was found and warnings are enabled, log an error
+    if(warn) {
+        LOG_MSG("\"%s\" is not a valid value for variable: %s.\n"
+            "It might now be reset to the default value: %s",
+            in_str.c_str(),
+            propname.c_str(),
+            default_value.ToString().c_str());
+    }
+
     return false;
 }
+
 
 bool Prop_path::SetValue(std::string const& input) {
     //Special version to merge realpath with it
