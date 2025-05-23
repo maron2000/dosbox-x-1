@@ -834,19 +834,19 @@ public:
             move(parent->getWidth()>this->getWidth()?(parent->getWidth()-this->getWidth())/2:0,parent->getHeight()>this->getHeight()?(parent->getHeight()-this->getHeight())/2:0);
 
             /* first child is first tabbable */
-            if (pv.size() > 0) {
+            if (pv.size() > 0 && opt[0] != nullptr) {
                 Window *w = opt[0];
                 if (w) w->first_tabbable = true;
             }
 
             /* last child is first tabbable */
-            if (pv.size() > 0) {
+            if (pv.size() > 0 && opt[pv.size()-1] != nullptr) {
                 Window *w = opt[pv.size()-1];
                 if (w) w->last_tabbable = true;
             }
 
             /* the FIRST field needs to come first when tabbed to */
-            if (pv.size() > 0) {
+            if (pv.size() > 0 && opt[0] != nullptr) {
                 Window *w = opt[0];
                 if (w) w->raise();
             }
