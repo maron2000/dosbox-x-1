@@ -1612,7 +1612,7 @@ void SHELL_Init() {
 	MSG_Add("SHELL_CMD_ECHO_HELP","Displays messages, or turns command-echoing on or off.\n");
 	MSG_Add("SHELL_CMD_ECHO_HELP_LONG","  ECHO [ON | OFF]\n  ECHO [message]\n\nType ECHO without parameters to display the current echo setting.\n");
 	MSG_Add("SHELL_CMD_EXIT_HELP","Exits from the command shell.\n");
-	MSG_Add("SHELL_CMD_EXIT_HELP_LONG","EXIT\n");
+	MSG_Add("SHELL_CMD_EXIT_HELP_LONG","EXIT [/F]\n\n   /F  Force exit DOSBox-X\n");
 	MSG_Add("SHELL_CMD_HELP_HELP","Shows DOSBox-X command help.\n");
 	MSG_Add("SHELL_CMD_HELP_HELP_LONG","HELP [/A or /ALL]\nHELP [command]\n\n"
 		    "   /A or /ALL   Lists all supported internal commands.\n"

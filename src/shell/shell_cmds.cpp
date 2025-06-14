@@ -1343,8 +1343,21 @@ void DOS_Shell::CMD_ECHO(char * args){
 }
 
 void DOS_Shell::CMD_EXIT(char * args) {
-	HELP("EXIT");
-	exit = true;
+    StripSpaces(args);
+    bool optF = ScanCMDBool(args, "F"); // Force exit DOSBox-X even if called from a batch file
+    char* rem = ScanCMDRemain(args);
+    if(rem) {
+        WriteOut(MSG_Get("SHELL_ILLEGAL_SWITCH"), rem);
+    }
+
+    if(!bf || optF) {
+        exit = true; // Force exit DOSBox-X
+    }
+    else {
+        delete bf;   // Delete batch file object to exit the batch file
+        bf = nullptr;
+    }
+
 }
 
 std::vector<uint8_t> olddrives;
