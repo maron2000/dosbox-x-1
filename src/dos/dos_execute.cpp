@@ -306,7 +306,7 @@ bool DOS_Execute(const char* name, PhysPt block_pt, uint8_t flags) {
         int16_t fLen = (int16_t)strlen(name);
         bool shellcom =(!strcasecmp(name+fLen-8, "4DOS.COM") && (fLen == 8 || *(name+fLen-9)=='\\')) || (!strcasecmp(name+fLen-11, "COMMAND.COM") && (fLen == 11 || *(name+fLen-12)=='\\')); // Trap 4DOS.COM and COMMAND.COM
         char z4dos[]="Z:\\4DOS\\4DOS.COM", zcmd[]="Z:\\COMMAND.COM";
-        if (ZDRIVE_NUM!=25) {
+        if(ZDRIVE_NUM >= 0 && ZDRIVE_NUM < 25) {
             z4dos[0]='A'+ZDRIVE_NUM;
             zcmd[0]='A'+ZDRIVE_NUM;
         }
