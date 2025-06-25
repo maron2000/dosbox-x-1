@@ -961,60 +961,92 @@ void DOS_Shell::Prepare(void) {
             else if((CurMode->type == M_TEXT || IS_PC98_ARCH) && ANSI_SYS_installed())
                 WriteOut("\033[2J");
             const char * extra = section->data.c_str();
-			if (extra&&!control->opt_securemode&&!control->SecureMode()&&!control->opt_noconfig) {
-				std::string vstr;
-				std::istringstream in(extra);
-				char linestr[CROSS_LEN+1], cmdstr[CROSS_LEN], valstr[CROSS_LEN], tmpstr[CROSS_LEN];
-				char *cmd=cmdstr, *val=valstr, *tmp=tmpstr, *p;
-				if (in)	for (std::string line; std::getline(in, line); ) {
-					if (line.length()>CROSS_LEN) {
-						strncpy(linestr, line.c_str(), CROSS_LEN);
-						linestr[CROSS_LEN]=0;
-					} else
-						strcpy(linestr, line.c_str());
-					p=strchr(linestr, '=');
-					if (p!=NULL) {
-						*p=0;
-						strcpy(cmd, linestr);
-						strcpy(val, p+1);
-						cmd=trim(cmd);
-						val=trim(val);
-						if (strlen(config_data)+strlen(cmd)+strlen(val)+3<CONFIG_SIZE) {
-							strcat(config_data, cmd);
-							strcat(config_data, "=");
-							strcat(config_data, val);
-							strcat(config_data, "\r\n");
-						}
-						if (!strncasecmp(cmd, "set ", 4)) {
-							vstr=std::string(val);
-							ResolvePath(vstr);
-							if (zdirpath && !strcmp(cmd, "set path")) GetExpandedPath(vstr);
-							DoCommand((char *)(std::string(cmd)+"="+vstr).c_str());
-						} else if (!strcasecmp(cmd, "install")||!strcasecmp(cmd, "installhigh")||!strcasecmp(cmd, "device")||!strcasecmp(cmd, "devicehigh")) {
-							vstr=std::string(val);
-							ResolvePath(vstr);
-							strcpy(tmp, vstr.c_str());
-							char *name=StripArg(tmp);
-							if (!*name) continue;
-							if (!DOS_FileExists(name)&&!DOS_FileExists((std::string("Z:\\SYSTEM\\")+name).c_str())&&!DOS_FileExists((std::string("Z:\\BIN\\")+name).c_str())&&!DOS_FileExists((std::string("Z:\\DOS\\")+name).c_str())&&!DOS_FileExists((std::string("Z:\\4DOS\\")+name).c_str())&&!DOS_FileExists((std::string("Z:\\DEBUG\\")+name).c_str())&&!DOS_FileExists((std::string("Z:\\TEXTUTIL\\")+name).c_str())) {
-								WriteOut(MSG_Get("SHELL_MISSING_FILE"), name);
-								continue;
-							}
-							if (!strcasecmp(cmd, "install"))
-								DoCommand((char *)vstr.c_str());
-							else if (!strcasecmp(cmd, "installhigh"))
-								DoCommand((char *)("lh "+vstr).c_str());
-							else if (!strcasecmp(cmd, "device"))
-								DoCommand((char *)("device "+vstr).c_str());
-							else if (!strcasecmp(cmd, "devicehigh"))
-								DoCommand((char *)("lh device "+vstr).c_str());
-						}
-					} else if (!strncasecmp(line.c_str(), "rem ", 4)) {
-						strcat(config_data, line.c_str());
-						strcat(config_data, "\r\n");
-					}
-				}
-			}
+            char drive_letter = (ZDRIVE_NUM >= 0 && ZDRIVE_NUM <= 25) ? static_cast<char>('A' + ZDRIVE_NUM) : 'Z';
+
+            if(extra && !control->opt_securemode && !control->SecureMode() && !control->opt_noconfig) {
+                std::string vstr;
+                std::istringstream in(extra);
+                char linestr[CROSS_LEN + 1], cmdstr[CROSS_LEN], valstr[CROSS_LEN], tmpstr[CROSS_LEN];
+                char* cmd = cmdstr, * val = valstr, * tmp = tmpstr, * p;
+
+                if(in) for(std::string line; std::getline(in, line); ) {
+                    if(line.length() > CROSS_LEN) {
+                        strncpy(linestr, line.c_str(), CROSS_LEN);
+                        linestr[CROSS_LEN] = 0;
+                    }
+                    else {
+                        strcpy(linestr, line.c_str());
+                    }
+
+                    p = strchr(linestr, '=');
+                    if(p != nullptr) {
+                        *p = 0;
+                        strcpy(cmd, linestr);
+                        strcpy(val, p + 1);
+                        cmd = trim(cmd);
+                        val = trim(val);
+
+                        size_t required_size = strlen(config_data) + strlen(cmd) + strlen(val) + 3;
+                        if(required_size < CONFIG_SIZE) {
+                            strcat(config_data, cmd);
+                            strcat(config_data, "=");
+                            strcat(config_data, val);
+                            strcat(config_data, "\r\n");
+                        }
+
+                        if(!strncasecmp(cmd, "set ", 4)) {
+                            vstr = std::string(val);
+                            ResolvePath(vstr);
+                            if(zdirpath && !strcmp(cmd, "set path")) GetExpandedPath(vstr);
+                            std::string command = std::string(cmd) + "=" + vstr;
+                            DoCommand((char*)command.c_str());
+                        }
+                        else if(!strcasecmp(cmd, "install") ||
+                            !strcasecmp(cmd, "installhigh") ||
+                            !strcasecmp(cmd, "device") ||
+                            !strcasecmp(cmd, "devicehigh")) {
+                            vstr = std::string(val);
+                            ResolvePath(vstr);
+                            strcpy(tmp, vstr.c_str());
+                            char* name = StripArg(tmp);
+                            if(!*name) continue;
+
+                            bool exists =
+                                DOS_FileExists(name) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\SYSTEM\\" + name).c_str()) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\BIN\\" + name).c_str()) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\DOS\\" + name).c_str()) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\4DOS\\" + name).c_str()) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\DEBUG\\" + name).c_str()) ||
+                                DOS_FileExists((std::string(1, drive_letter) + ":\\TEXTUTIL\\" + name).c_str());
+
+                            if(!exists) {
+                                WriteOut(MSG_Get("SHELL_MISSING_FILE"), name);
+                                continue;
+                            }
+
+                            std::string command;
+                            if(!strcasecmp(cmd, "install"))
+                                command = vstr;
+                            else if(!strcasecmp(cmd, "installhigh"))
+                                command = "lh " + vstr;
+                            else if(!strcasecmp(cmd, "device"))
+                                command = "device " + vstr;
+                            else if(!strcasecmp(cmd, "devicehigh"))
+                                command = "lh device " + vstr;
+
+                            DoCommand((char*)command.c_str());
+                        }
+                    }
+                    else if(!strncasecmp(line.c_str(), "rem ", 4)) {
+                        if(strlen(config_data) + line.size() + 2 < CONFIG_SIZE) {
+                            strcat(config_data, line.c_str());
+                            strcat(config_data, "\r\n");
+                        }
+                    }
+                }
+            }
+
 		}
         std::string line;
         GetEnvStr("PATH",line);
