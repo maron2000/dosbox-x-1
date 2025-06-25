@@ -1338,16 +1338,12 @@ public:
 			if ( secure ) autoexec[12].Install("z:\\system\\config.com -securemode");
 		}
 #else
-		if (secure) autoexec[i++].Install("z:\\system\\config.com -securemode");
-#endif
-#if 0
-//#if defined(WIN32) && defined(USE_TTF) /* Workaround for TTF screen initialization */
-        if(static_cast<Section_prop*>(control->GetSection("sdl"))->Get_string("output")=="ttf") {
-            autoexec[i++].Install("@config -set output=surface");
-            autoexec[i++].Install("@config -set output=ttf");
+        if(secure) {
+            char drive_letter = (ZDRIVE_NUM >= 0 && ZDRIVE_NUM <= 25) ? static_cast<char>('A' + ZDRIVE_NUM) : 'Z';
+            std::string cmd = std::string(1, drive_letter) + ":\\system\\config.com -securemode";
+            autoexec[i++].Install(cmd.c_str());
         }
-//#endif /* (WIN32) && (USE_TTF) */
-#endif // 0
+#endif
         if (addexit) autoexec[i++].Install("exit");
 
 		assert(i <= 17); /* FIXME: autoexec[] should not be fixed size */
