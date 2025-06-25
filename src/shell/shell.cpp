@@ -961,27 +961,32 @@ void DOS_Shell::Prepare(void) {
             else if((CurMode->type == M_TEXT || IS_PC98_ARCH) && ANSI_SYS_installed())
                 WriteOut("\033[2J");
             const char * extra = section->data.c_str();
-            char drive_letter = (ZDRIVE_NUM >= 0 && ZDRIVE_NUM <= 25) ? static_cast<char>('A' + ZDRIVE_NUM) : 'Z';
-
             if(extra && !control->opt_securemode && !control->SecureMode() && !control->opt_noconfig) {
                 std::string vstr;
                 std::istringstream in(extra);
-                char linestr[CROSS_LEN + 1], cmdstr[CROSS_LEN], valstr[CROSS_LEN], tmpstr[CROSS_LEN];
-                char* cmd = cmdstr, * val = valstr, * tmp = tmpstr, * p;
+
+                std::unique_ptr<char[]> linestr(new char[CROSS_LEN + 1]);
+                std::unique_ptr<char[]> cmdstr(new char[CROSS_LEN]);
+                std::unique_ptr<char[]> valstr(new char[CROSS_LEN]);
+                std::unique_ptr<char[]> tmpstr(new char[CROSS_LEN]);
+                char* cmd = cmdstr.get(), * val = valstr.get(), * tmp = tmpstr.get(), * p;
+
+                char drive_letter_char = (ZDRIVE_NUM >= 0 && ZDRIVE_NUM <= 25) ? static_cast<char>('A' + ZDRIVE_NUM) : 'Z';
+                std::string drive_letter(1, drive_letter_char);
 
                 if(in) for(std::string line; std::getline(in, line); ) {
                     if(line.length() > CROSS_LEN) {
-                        strncpy(linestr, line.c_str(), CROSS_LEN);
-                        linestr[CROSS_LEN] = 0;
+                        strncpy(linestr.get(), line.c_str(), CROSS_LEN);
+                        linestr.get()[CROSS_LEN] = 0;
                     }
                     else {
-                        strcpy(linestr, line.c_str());
+                        strcpy(linestr.get(), line.c_str());
                     }
 
-                    p = strchr(linestr, '=');
+                    p = strchr(linestr.get(), '=');
                     if(p != nullptr) {
                         *p = 0;
-                        strcpy(cmd, linestr);
+                        strcpy(cmd, linestr.get());
                         strcpy(val, p + 1);
                         cmd = trim(cmd);
                         val = trim(val);
@@ -1013,12 +1018,12 @@ void DOS_Shell::Prepare(void) {
 
                             bool exists =
                                 DOS_FileExists(name) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\SYSTEM\\" + name).c_str()) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\BIN\\" + name).c_str()) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\DOS\\" + name).c_str()) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\4DOS\\" + name).c_str()) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\DEBUG\\" + name).c_str()) ||
-                                DOS_FileExists((std::string(1, drive_letter) + ":\\TEXTUTIL\\" + name).c_str());
+                                DOS_FileExists((drive_letter + ":\\SYSTEM\\" + name).c_str()) ||
+                                DOS_FileExists((drive_letter + ":\\BIN\\" + name).c_str()) ||
+                                DOS_FileExists((drive_letter + ":\\DOS\\" + name).c_str()) ||
+                                DOS_FileExists((drive_letter + ":\\4DOS\\" + name).c_str()) ||
+                                DOS_FileExists((drive_letter + ":\\DEBUG\\" + name).c_str()) ||
+                                DOS_FileExists((drive_letter + ":\\TEXTUTIL\\" + name).c_str());
 
                             if(!exists) {
                                 WriteOut(MSG_Get("SHELL_MISSING_FILE"), name);
@@ -1046,7 +1051,6 @@ void DOS_Shell::Prepare(void) {
                     }
                 }
             }
-
 		}
         std::string line;
         GetEnvStr("PATH",line);
