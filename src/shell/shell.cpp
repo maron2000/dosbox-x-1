@@ -544,7 +544,11 @@ void DOS_Shell::ParseLine(char * line) {
 			if (toc&&!device&&DOS_FindFirst(pipetmp, ~DOS_ATTR_VOLUME)&&!DOS_UnlinkFile(pipetmp))
 				fail=true;
 			status = device?false:DOS_OpenFileExtended(toc&&!fail?pipetmp:out,OPEN_READWRITE,DOS_ATTR_ARCHIVE,0x12,&dummy,&dummy2);
-            bool pipetmp_is_zdrive = strncasecmp(pipetmp, "Z:\\", 3) == 0;
+
+            char zdrive_letter = (ZDRIVE_NUM >= 0 && ZDRIVE_NUM <= 25) ? static_cast<char>('A' + ZDRIVE_NUM) : 'Z';
+            char zdrive_prefix[4] = { zdrive_letter, ':', '\\', '\0' };
+            bool pipetmp_is_zdrive = strncasecmp(pipetmp, zdrive_prefix, 3) == 0;
+
             if (toc&&(fail||!status)&&(!strchr(pipetmp,'\\')|| pipetmp_is_zdrive)) {
                 Overlay_Drive *da = Drives[0] ? (Overlay_Drive *)Drives[0] : NULL, *dc = Drives[2] ? (Overlay_Drive *)Drives[2] : NULL;
                 if (!pipetmp_is_zdrive && ((Drives[0]&&!Drives[0]->readonly&&!(da&&da->ovlreadonly))||(Drives[2]&&!Drives[2]->readonly&&!(dc&&dc->ovlreadonly)))) {
