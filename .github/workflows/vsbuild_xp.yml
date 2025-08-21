@@ -28,30 +28,33 @@ jobs:
         run: |
           $VSInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
           $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+          $LogFile = "$env:TEMP\VSInstall.log"
+
           $Components = @(
-            "Microsoft.VisualStudio.Component.VC.v141.x86.x64",
-            "Microsoft.VisualStudio.Component.VC.v141.MFC",
-            "Microsoft.VisualStudio.Component.WinXP",
-            "Microsoft.VisualStudio.Component.Windows11SDK.22621"
+              "Microsoft.VisualStudio.Component.VC.v141.x86.x64",
+              "Microsoft.VisualStudio.Component.VC.v141.MFC",
+              "Microsoft.VisualStudio.Component.WinXP",
+              "Microsoft.VisualStudio.Component.Windows11SDK.22621"
           )
 
-          $Args = @(
-            'modify',
-            "--installPath=$InstallPath",
-            ($Components | ForEach-Object { "--add $_" }),
-            '--quiet', '--norestart', '--nocache', '--wait'
-          )
+          $Args = @('modify', "--installPath=$InstallPath") +
+                  ($Components | ForEach-Object { "--add $_" }) +
+                  @('--quiet', '--norestart', '--nocache', "--log $LogFile", '--wait')
 
-          $LogDir = "$env:ProgramData\Microsoft\VisualStudio\Setup\Logs"
-          $process = Start-Process -FilePath $VSInstaller -ArgumentList $Args -Wait -PassThru
+          Write-Host "Starting Visual Studio installer..."
+          set +e
+          $proc = Start-Process -FilePath $VSInstaller -ArgumentList $Args -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+              Write-Host "Visual Studio installer exited with code $($proc.ExitCode)"
+          }
 
-          $LatestLog = Get-ChildItem $LogDir -Recurse |
-                       Sort-Object LastWriteTime -Descending |
-                       Select-Object -First 1
+          if (Test-Path $LogFile) {
+              Write-Host "`n=== Extracted errors from VS installer log ===`n"
+              Get-Content $LogFile | Select-String -Pattern "error", "failed" -CaseSensitive | ForEach-Object { Write-Host $_ }
+              Write-Host "=== End of errors ===`n"
+          }
+          set -e
 
-          Write-Host "===== Errors in installer log ====="
-          Select-String -Path $LatestLog.FullName -Pattern "\[ERROR\]|\[FATAL\]" |
-            ForEach-Object { Write-Host $_.Line }
       - name: Prepare Visual Studio build for WinXP
         shell: bash
         run: |
