@@ -37,14 +37,34 @@ jobs:
               "Microsoft.VisualStudio.Component.Windows11SDK.22621"
           )
 
-          $Args = @('modify', "--installPath=$InstallPath") +
-                  ($Components | ForEach-Object { "--add $_" }) +
-                  @('--quiet', '--norestart', '--nocache', "--log $LogFile", '--wait')
+          $TimeoutMinutes = 60
+          $MaxRetries = 2
 
-          Write-Host "Starting Visual Studio installer..."
-          1..2 | ForEach-Object {
-              Start-Process -FilePath $VSInstaller -ArgumentList $Arguments -Wait -PassThru
+          $Arguments = @(
+              "modify",
+              "--installPath=$InstallPath",
+              ($Components | ForEach-Object { "--add $_" }),
+              "--quiet",
+              "--norestart",
+              "--nocache",
+              "--log=$LogFile"
+          )
+
+          for ($retry = 1; $retry -le $MaxRetries; $retry++) {
+              Write-Host "Installer attempt $retry"
+              
+              $process = Start-Process -FilePath $VSInstaller -ArgumentList $Arguments -PassThru
+              
+              if ($process.WaitForExit($TimeoutMinutes * 30 * 1000)) {
+                  Write-Host "Installer finished within timeout."
+                  break
+              } else {
+                  Write-Host "Installer timed out after $TimeoutMinutes minutes. Killing process..."
+                  $process | Stop-Process -Force
+                  Write-Host "Retrying..."
+              }
           }
+
 
           if ($proc.ExitCode -ne 0) {
               Write-Host "Visual Studio installer exited with code $($proc.ExitCode)"
