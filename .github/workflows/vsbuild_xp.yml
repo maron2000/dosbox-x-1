@@ -30,45 +30,13 @@ jobs:
           $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           $LogFile = "$env:TEMP\VSInstall.log"
 
-          $Components = @(
-              "Microsoft.VisualStudio.Component.VC.v141.x86.x64",
-              "Microsoft.VisualStudio.Component.VC.v141.MFC",
-              "Microsoft.VisualStudio.Component.WinXP",
-              "Microsoft.VisualStudio.Component.Windows11SDK.22621"
-          )
-
-          $TimeoutMinutes = 60
-          $MaxRetries = 2
-
-          $Args = @('modify', "--installPath=$InstallPath") +
-                  ($Components | ForEach-Object { "--add $_" }) +
-                  @('--quiet', '--norestart', '--nocache')
-
-          for ($retry = 1; $retry -le $MaxRetries; $retry++) {
-              Write-Host "Installer attempt $retry"
-              
-              $process = Start-Process -FilePath $VSInstaller -ArgumentList $Args -PassThru
-              
-              if ($process.WaitForExit($TimeoutMinutes * 30 * 1000)) {
-                  Write-Host "Installer finished within timeout."
-                  break
-              } else {
-                  Write-Host "Installer timed out after $TimeoutMinutes minutes. Killing process..."
-                  $process | Stop-Process -Force
-                  Write-Host "Retrying..."
-              }
-          }
-
-          if ($proc.ExitCode -ne 0) {
-              Write-Host "Visual Studio installer exited with code $($proc.ExitCode)"
-          }
-
-          if (Test-Path $LogFile) {
-              Write-Host "`n=== Extracted errors from VS installer log ===`n"
-              Get-Content $LogFile | Select-String -Pattern "error", "failed" -CaseSensitive | ForEach-Object { Write-Host $_ }
-              Write-Host "=== End of errors ===`n"
-          }
-
+          Start-Process -FilePath $VSInstaller -ArgumentList `
+            "--quiet", "--wait", "--norestart", "--nocache", `
+            "--installPath", "$InstallPath", `
+            "--add", "Microsoft.VisualStudio.Component.Windows11SDK.22621", `
+            "--add", "Microsoft.VisualStudio.Component.VC.v141.x86.x64", `
+            "--add", "Microsoft.VisualStudio.Component.VC.v141.MFC", `
+            "--add", "Microsoft.VisualStudio.Component.WinXP", -Wait
       - name: Prepare Visual Studio build for WinXP
         shell: bash
         run: |
