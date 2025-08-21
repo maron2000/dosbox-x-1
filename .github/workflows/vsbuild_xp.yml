@@ -37,6 +37,15 @@ jobs:
             "--add", "Microsoft.VisualStudio.Component.VC.v141.x86.x64", `
             "--add", "Microsoft.VisualStudio.Component.VC.v141.MFC", `
             "--add", "Microsoft.VisualStudio.Component.WinXP", -Wait
+
+          Start-Process -FilePath $VSInstaller -ArgumentList `
+            "--quiet", "--wait", "--norestart", "--nocache", `
+            "--installPath", "$InstallPath", `
+            "--add", "Microsoft.VisualStudio.Component.Windows11SDK.22621", `
+            "--add", "Microsoft.VisualStudio.Component.VC.v141.x86.x64", `
+            "--add", "Microsoft.VisualStudio.Component.VC.v141.MFC", `
+            "--add", "Microsoft.VisualStudio.Component.WinXP", -Wait
+
       - name: Prepare Visual Studio build for WinXP
         shell: bash
         run: |
