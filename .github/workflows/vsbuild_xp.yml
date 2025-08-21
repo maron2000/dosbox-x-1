@@ -40,20 +40,14 @@ jobs:
           $TimeoutMinutes = 60
           $MaxRetries = 2
 
-          $Arguments = @(
-              "modify",
-              "--installPath=$InstallPath",
-              ($Components | ForEach-Object { "--add $_" }),
-              "--quiet",
-              "--norestart",
-              "--nocache",
-              "--log=$LogFile"
-          )
+          $Args = @('modify', "--installPath=$InstallPath") +
+                  ($Components | ForEach-Object { "--add $_" }) +
+                  @('--quiet', '--norestart', '--nocache')
 
           for ($retry = 1; $retry -le $MaxRetries; $retry++) {
               Write-Host "Installer attempt $retry"
               
-              $process = Start-Process -FilePath $VSInstaller -ArgumentList $Arguments -PassThru
+              $process = Start-Process -FilePath $VSInstaller -ArgumentList $Args -PassThru
               
               if ($process.WaitForExit($TimeoutMinutes * 30 * 1000)) {
                   Write-Host "Installer finished within timeout."
@@ -64,7 +58,6 @@ jobs:
                   Write-Host "Retrying..."
               }
           }
-
 
           if ($proc.ExitCode -ne 0) {
               Write-Host "Visual Studio installer exited with code $($proc.ExitCode)"
