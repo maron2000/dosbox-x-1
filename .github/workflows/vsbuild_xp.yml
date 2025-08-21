@@ -42,8 +42,10 @@ jobs:
                   @('--quiet', '--norestart', '--nocache', "--log $LogFile", '--wait')
 
           Write-Host "Starting Visual Studio installer..."
-          set +e
-          $proc = Start-Process -FilePath $VSInstaller -ArgumentList $Args -Wait -PassThru
+          1..2 | ForEach-Object {
+              Start-Process -FilePath $VSInstaller -ArgumentList $Arguments -Wait -PassThru
+          }
+
           if ($proc.ExitCode -ne 0) {
               Write-Host "Visual Studio installer exited with code $($proc.ExitCode)"
           }
@@ -53,7 +55,6 @@ jobs:
               Get-Content $LogFile | Select-String -Pattern "error", "failed" -CaseSensitive | ForEach-Object { Write-Host $_ }
               Write-Host "=== End of errors ===`n"
           }
-          set -e
 
       - name: Prepare Visual Studio build for WinXP
         shell: bash
