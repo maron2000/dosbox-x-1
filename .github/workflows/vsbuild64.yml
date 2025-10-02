@@ -259,6 +259,8 @@ jobs:
       - name: Build Visual Studio Win64 SDL1
         shell: pwsh
         run: |
+          cp src/libs/fluidsynth2/dosbox-x.vcxproj vs/
+          cp src/libs/fluidsynth2/dosbox-x.vcxproj.filters vs/
           msbuild -m vs/dosbox-x.sln -t:dosbox-x:Rebuild -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143
           if (-not(Test-Path -Path bin\x64\Release\dosbox-x.exe -PathType Leaf)) {exit 1}
       - name: Build Visual Studio Win64 SDL2
@@ -303,6 +305,7 @@ jobs:
           cp $top/contrib/glshaders/* $top/package/glshaders/
           cp $top/contrib/translations/*/*.lng $top/package/languages/
           cp $top/COPYING $top/package/COPYING
+          cp $top/src/libs/fluidsynth2/*.dll $top/package/
           cd $top/package/
           $top/vs/tool/zip.exe -r -9 $top/dosbox-x-vs2022build-${{ env.timestamp }}-experimental.zip *
           cd $top
