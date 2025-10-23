@@ -30,6 +30,11 @@
 
 extern std::string niclist;
 
+struct timespec {
+    time_t tv_sec;            /* Seconds.  */
+    long int tv_nsec;         /* Nanoseconds.  */
+};
+
 #if __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 typedef enum {
     _CLOCK_REALTIME = 0,
