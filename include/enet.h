@@ -5087,9 +5087,6 @@ extern "C" {
 
     #ifndef WIN_PTHREADS_TIME_H
         int clock_gettime(int X, struct timespec* tv) {
-    #else
-        int clock_gettime_compat(int X, struct timespec* tv) {
-    #endif
             LARGE_INTEGER t;
             FILETIME f;
             double microseconds;
@@ -5126,7 +5123,8 @@ extern "C" {
             tv->tv_nsec = t.QuadPart % 1000000 * 1000;
             return (0);
         }
-    #elif __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
+    #endif
+#elif __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 #include <Availability.h>
 #define STR2(x) #x
 #define STR(x) STR2(x)

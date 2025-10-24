@@ -17,6 +17,7 @@
  */
 
 #include "config.h"
+#include "enet.h"
 
 #if C_SLIRP
 
@@ -28,7 +29,60 @@
 #include <map>
 #include "dosbox.h"
 
-int clock_gettime_compat(int X, struct timespec* tv);
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 1
+#endif
+
+#define WINDOWS_TICK 10000000LL
+#define SEC_TO_UNIX_EPOCH 11644473600LL
+
+static int clock_gettime_win32(int clk_id, struct timespec* ts)
+{
+    if(!ts)
+        return -1;
+
+    if(clk_id == CLOCK_REALTIME) {
+        FILETIME ft;
+        ULARGE_INTEGER uli;
+        GetSystemTimeAsFileTime(&ft);
+        uli.LowPart = ft.dwLowDateTime;
+        uli.HighPart = ft.dwHighDateTime;
+
+        unsigned long long t = uli.QuadPart / 10; // µs → 100ns
+        t -= SEC_TO_UNIX_EPOCH * 1000000ULL;
+
+        ts->tv_sec = t / 1000000ULL;
+        ts->tv_nsec = (long)((t % 1000000ULL) * 1000);
+        return 0;
+    }
+
+    if(clk_id == CLOCK_MONOTONIC) {
+        static LARGE_INTEGER freq;
+        static BOOL init = FALSE;
+        LARGE_INTEGER count;
+
+        if(!init) {
+            if(!QueryPerformanceFrequency(&freq))
+                return -1;
+            init = TRUE;
+        }
+
+        if(!QueryPerformanceCounter(&count))
+            return -1;
+
+        double seconds = (double)count.QuadPart / (double)freq.QuadPart;
+        ts->tv_sec = (time_t)seconds;
+        ts->tv_nsec = (long)((seconds - ts->tv_sec) * 1e9);
+        return 0;
+    }
+
+    return -1; // unsupported clock id
+}
+
 extern std::string niclist;
 
 #if __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
@@ -125,11 +179,7 @@ int64_t slirp_clock_get_ns(void* opaque)
 {
 	(void)opaque;
 	struct timespec ts;
-#ifndef WIN_PTHREADS_TIME_H
-    clock_gettime(CLOCK_REALTIME, &ts);
-#else
-    clock_gettime_compat(CLOCK_REALTIME, &ts);
-#endif
+    clock_gettime_win32(CLOCK_REALTIME, &ts);
     /* if clock_gettime fails we have more serious problems */
 	return ts.tv_nsec + (ts.tv_sec * 1e9);
 }
