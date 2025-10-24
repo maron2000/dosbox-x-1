@@ -27,6 +27,7 @@
 #include <slirp/libslirp.h>
 #include <list>
 #include <map>
+#include "enet.h"
 
 /*
  * libslirp really wants a poll() API, so we'll use that when we're

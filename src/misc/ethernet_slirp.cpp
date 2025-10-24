@@ -28,6 +28,7 @@
 #include <map>
 #include "dosbox.h"
 
+int clock_gettime_compat(int X, struct timespec* tv);
 extern std::string niclist;
 
 #if __APPLE__ && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
@@ -107,61 +108,6 @@ SSIZE_T
 ssize_t 
 #endif
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
-/* A clock_gettime() alternative to avoid crashes in MinGW builds */
-// Windows API
-#include <windows.h>
-#include <stdio.h>
-
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME 0
-#endif
-
-#ifndef CLOCK_MONOTONIC
-#define CLOCK_MONOTONIC 1
-#endif
-
-static int clock_gettime_compat(int clk_id, struct timespec* ts)
-{
-    if(!ts) return -1;
-
-    switch(clk_id) {
-    case CLOCK_REALTIME: {
-        FILETIME ft;
-        ULARGE_INTEGER t;
-        GetSystemTimePreciseAsFileTime(&ft);
-        t.LowPart = ft.dwLowDateTime;
-        t.HighPart = ft.dwHighDateTime;
-
-        // 100ns → sec/nsec
-        unsigned long long ns100 = t.QuadPart;
-        ns100 -= 116444736000000000ULL; // 1970/01/01 UTC
-        ts->tv_sec = (time_t)(ns100 / 10000000ULL);
-        ts->tv_nsec = (long)((ns100 % 10000000ULL) * 100);
-        return 0;
-    }
-
-    case CLOCK_MONOTONIC: {
-        static LARGE_INTEGER freq = { 0 };
-        LARGE_INTEGER counter;
-
-        if(freq.QuadPart == 0) {
-            if(!QueryPerformanceFrequency(&freq)) return -1;
-        }
-
-        if(!QueryPerformanceCounter(&counter)) return -1;
-
-        ts->tv_sec = (time_t)(counter.QuadPart / freq.QuadPart);
-        ts->tv_nsec = (long)(((counter.QuadPart % freq.QuadPart) * 1000000000ULL) / freq.QuadPart);
-        return 0;
-    }
-
-    default:
-        return -1;
-    }
-}
-#endif //defined(__MINGW32__) || defined(__MINGW64__)
-
 slirp_receive_packet(const void* buf, size_t len, void* opaque)
 {
 	SlirpEthernetConnection* conn = (SlirpEthernetConnection*)opaque;
@@ -179,10 +125,10 @@ int64_t slirp_clock_get_ns(void* opaque)
 {
 	(void)opaque;
 	struct timespec ts;
-#if defined(__MINGW32__) || defined(__MINGW64__)
-    clock_gettime_compat(CLOCK_REALTIME, &ts);
-#else
+#ifndef WIN_PTHREADS_TIME_H
     clock_gettime(CLOCK_REALTIME, &ts);
+#else
+    clock_gettime_compat(CLOCK_REALTIME, &ts);
 #endif
     /* if clock_gettime fails we have more serious problems */
 	return ts.tv_nsec + (ts.tv_sec * 1e9);
