@@ -422,10 +422,14 @@ FLUID_INLINE void get_timespec(timespec_type* tm)
 #else /* ifdef __MACH__ */
 
 typedef struct timespec timespec_type;
-
+int clock_gettime_win32(int clk_id, struct timespec* ts);
 FLUID_INLINE void get_timespec(timespec_type* tm)
 {
-  clock_gettime(CLOCK_MONOTONIC, tm);
+#ifndef WIN_PTHREADS_TIME_H
+    clock_gettime(CLOCK_REALTIME, &ts);
+#else
+    clock_gettime_win32(CLOCK_REALTIME, &ts);
+#endif
 }
 
 #endif /* ifdef __MACH__ */

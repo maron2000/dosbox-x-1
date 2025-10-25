@@ -55,6 +55,7 @@ extern bool enable_share_exe, enable_dbcs_tables;
 extern int dos_clipboard_device_access;
 extern const char *dos_clipboard_device_name;
 
+int clock_gettime_win32(int clk_id, struct timespec* ts);
 #if defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 
 #include <mach/mach_time.h>
@@ -1443,7 +1444,11 @@ void initRand() {
 #else
     struct timespec ts;
     unsigned theTick = 0U;
-    clock_gettime( CLOCK_REALTIME, &ts );
+#ifndef WIN_PTHREADS_TIME_H
+    clock_gettime(CLOCK_REALTIME, &ts);
+#else
+    clock_gettime_win32(CLOCK_REALTIME, &ts);
+#endif
     theTick  = ts.tv_nsec / 1000000;
     theTick += ts.tv_sec * 1000;
     srand(theTick);

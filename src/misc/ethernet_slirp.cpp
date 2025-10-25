@@ -40,7 +40,8 @@
 #define WINDOWS_TICK 10000000LL
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
-static int clock_gettime_win32(int clk_id, struct timespec* ts)
+#ifdef WIN32
+int clock_gettime_win32(int clk_id, struct timespec* ts)
 {
     if(!ts)
         return -1;
@@ -82,6 +83,7 @@ static int clock_gettime_win32(int clk_id, struct timespec* ts)
 
     return -1; // unsupported clock id
 }
+#endif // WIN32
 
 extern std::string niclist;
 
@@ -179,9 +181,17 @@ int64_t slirp_clock_get_ns(void* opaque)
 {
 	(void)opaque;
 	struct timespec ts;
-    clock_gettime_win32(CLOCK_REALTIME, &ts);
+    #ifndef WIN_PTHREADS_TIME_H
+    int ret = clock_gettime(CLOCK_REALTIME, &ts);
+#else
+    int ret = clock_gettime_win32(CLOCK_REALTIME, &ts);
+#endif
     /* if clock_gettime fails we have more serious problems */
-	return ts.tv_nsec + (ts.tv_sec * 1e9);
+    if (ret != 0) {
+        LOG_MSG("SLIRP: slirp_clock_get_ns: clock_gettime failed");
+        return 0;
+    }
+    return ts.tv_nsec + (ts.tv_sec * 1e9);
 }
 
 void *slirp_timer_new(SlirpTimerCb cb, void* cb_opaque, void* opaque)
