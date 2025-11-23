@@ -20,6 +20,7 @@
 #include "cross.h"
 #include "support.h"
 #include "dos_inc.h"
+#include "logging.h"
 #include <string>
 #include <limits.h>
 #include <stdlib.h>
@@ -204,7 +205,6 @@ std::string Cross::GetPlatformConfigDir()
     return dir;
 }
 
-
 std::string Cross::GetPlatformConfigName()
 {
     std::string name;
@@ -230,7 +230,9 @@ std::string Cross::CreatePlatformConfigDir()
 #if defined(WIN32) && !defined(HX_DOS)
     path = W32_ConfDir(true);
     path += "\\DOSBox-X";
-    _mkdir(path.c_str());
+    if(_mkdir(path.c_str()) != 0) {
+        LOG_MSG("CreatePlatformConfigDir: Could not create config directory %s", path.c_str());
+    }
 
 #elif defined(MACOSX)
     path = "~/Library/Preferences";
@@ -259,6 +261,59 @@ std::string Cross::CreatePlatformConfigDir()
     return path;
 }
 
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+/* UTF-16 functions for Windows */
+static std::wstring W32_ConfDirW(bool create) {
+    wchar_t result[MAX_PATH] = { 0 };
+    BOOL r = SHGetSpecialFolderPathW(NULL, result, CSIDL_LOCAL_APPDATA, create ? TRUE : FALSE);
+    if(!r || result[0] == L'\0')
+        r = SHGetSpecialFolderPathW(NULL, result, CSIDL_APPDATA, create ? TRUE : FALSE);
+
+    // Fallback (windir)
+    if(!r || result[0] == L'\0') {
+        const wchar_t* windir = _wgetenv(L"windir");
+        if(!windir) windir = L"C:\\Windows";
+
+        wcsncpy(result, windir, MAX_PATH - 1);
+        result[MAX_PATH - 1] = L'\0';
+
+        const wchar_t* appdata = L"\\Application Data";
+        if(wcslen(result) + wcslen(appdata) + 1 <= MAX_PATH)
+            wcscat(result, appdata);
+    }
+
+    if(create) {
+        if(_wmkdir(result) != 0 && errno != EEXIST) {
+            LOG_MSG("W32_ConfDirW: Could not create config directory %ls", result);
+        }
+    }
+    return std::wstring(result);
+}
+
+std::wstring Cross::CreatePlatformConfigDirW()
+{
+    std::wstring wdir = W32_ConfDirW(true);
+    if(!wdir.empty()) {
+        wdir += L"\\DOSBox-X";
+
+        if(_wmkdir(wdir.c_str()) != 0 && errno != EEXIST) {
+            LOG_MSG("CreatePlatformConfigDirW: Could not create directory %ls", wdir.c_str());
+        }
+
+        wdir += CROSS_FILESPLITW; // CROSS_FILESPLITW が単一文字ならこれでOK
+    }
+    return wdir;
+}
+std::wstring Cross::GetPlatformConfigDirW()
+{
+    std::wstring wdir = W32_ConfDirW(true);
+    if(!wdir.empty()) {
+        wdir += L"\\DOSBox-X";
+        wdir += CROSS_FILESPLITW;
+    }
+    return wdir;
+}
+#endif
 
 void Cross::ResolveHomedir(std::string & temp_line) {
 	if(!temp_line.size() || temp_line[0] != '~') return; //No ~

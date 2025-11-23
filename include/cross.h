@@ -45,6 +45,7 @@
 #if defined (WIN32) || defined (OS2)				/* Win 32 & OS/2*/
 #define CROSS_FILENAME(blah) 
 #define CROSS_FILESPLIT '\\'
+#define CROSS_FILESPLITW L'\\'
 #define F_OK 0
 #else
 #define	CROSS_FILENAME(blah) strreplace_dbcs(blah,'\\','/')
@@ -70,7 +71,11 @@ public:
 	static std::string GetPlatformConfigDir(void);
 	static std::string GetPlatformConfigName(void);
 	static std::string CreatePlatformConfigDir(void);
-	static void ResolveHomedir(std::string & temp_line);
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+    static std::wstring GetPlatformConfigDirW(void);
+    static std::wstring CreatePlatformConfigDirW(void);
+#endif
+    static void ResolveHomedir(std::string & temp_line);
 	static void CreateDir(std::string const& in);
 	static bool IsPathAbsolute(std::string const& in);
 };
@@ -131,4 +136,12 @@ void close_directory(dir_information* dirp);
 FILE* fopen_wrap(const char* path, const char* mode);
 
 const char* get_time(void);
+
+#if defined(WIN32) && !defined(HX_DOS)
+std::string W32_ConfDir(bool create);
+    #if !defined(_WIN32_WINDOWS)
+    std::wstring W32_ConfDirW(bool create);
+    #endif
+#endif
+
 #endif
