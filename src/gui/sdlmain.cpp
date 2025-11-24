@@ -143,6 +143,7 @@ char* revert_escape_newlines(const char* aMessage);
 #include "inout.h"
 #include "jfont.h"
 #include "render.h"
+#include "cross.h"
 #include "../dos/cdrom.h"
 #include "../dos/drives.h"
 #include "../ints/int10.h"
@@ -262,6 +263,9 @@ typedef enum PROCESS_DPI_AWARENESS {
 #include "../hardware/voodoo_data.h"
 #include "../hardware/voodoo_opengl.h"
 #endif
+
+std::wstring Utf8ToW(const std::string& s);
+std::string WToUtf8(const std::wstring& wstr);
 
 #if defined(MACOSX) && !defined(C_SDL2) && defined(SDL_DOSBOX_X_SPECIAL)
 extern "C" void sdl1_hax_macosx_highdpi_set_enable(const bool enable);
@@ -8849,7 +8853,7 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
                 target_dir = configpath.substr(0, found + 1);
         }
         if (!target_dir.empty()) {
-        #if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+        #if defined(WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
             std::wstring w = Utf8ToW(target_dir);
             if(_wchdir(w.c_str()) == -1) {
         #else

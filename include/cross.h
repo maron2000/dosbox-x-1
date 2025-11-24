@@ -139,7 +139,7 @@ const char* get_time(void);
 
 #if defined(WIN32) && !defined(HX_DOS)
 std::string W32_ConfDir(bool create);
-    #if !defined(_WIN32_WINDOWS)
+    #if defined(_WIN32_WINNT)
     void autoExpandEnvironmentVariablesW(std::wstring& text, bool dosvar);
     std::wstring Utf8ToW(const std::string& s);
     std::string WToUtf8(const std::wstring& wstr);

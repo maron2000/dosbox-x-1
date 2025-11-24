@@ -1232,7 +1232,7 @@ bool Config::ParseConfigFile(char const * const configfilename) {
         LOG_MSG("Warning: config file path %d characters is too long: %s", strlen(configfilename), configfilename);
     }
 
-#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if defined(WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
     std::wstring wconfigfilename = Utf8ToW(configfilename);
     std::wifstream in(wconfigfilename.c_str());
 #else
@@ -1256,7 +1256,7 @@ bool Config::ParseConfigFile(char const * const configfilename) {
 
     Section* currentsection = NULL;
     Section* testsec = NULL;
-#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if defined(WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
     std::wstring wgegevens;
     while(std::getline(in, wgegevens)) {
         std::string gegevens = WToUtf8(wgegevens);

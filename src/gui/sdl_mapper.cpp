@@ -4861,7 +4861,7 @@ static void MAPPER_SaveBinds(void) {
     }
     fclose(savefile);
 #if defined(WIN32)
-#if !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if !defined(HX_DOS) && !defined(_WIN32_WINNT)
     wchar_t path[MAX_PATH];
     std::wstring filenameW = Utf8ToW(mapper.filename);
     if(GetFullPathNameW(filenameW.c_str(), MAX_PATH, path, NULL)) LOG_MSG("Saved mapper file: %s", path);

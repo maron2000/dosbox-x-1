@@ -56,7 +56,7 @@ bool isKanji1_gbk(uint8_t chr), CodePageHostToGuestUTF16(char *d/*CROSS_LEN*/,co
 #define _mkdir(x) mkdir(x)
 #endif
 
-#if defined(_WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if defined(_WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
     FILE* fopenW(const std::string& path, const char* mode) {
         std::wstring wmode;
         for(const char* p = mode; *p; ++p)
@@ -89,7 +89,7 @@ void ResolvePath(std::string& path) {
     // resolveopt = 0: ignore, 1: resolve homedir & expand env, 2: expand env only, 3: skip
     if(!resolveopt || resolveopt == 3) return;
 
-#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if defined(WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
     //if(resolveopt == 2) { 
     /* no need to resolve home directory for Windows (resolveopt == 1)*/
         std::wstring wpath = Utf8ToW(path);
@@ -299,7 +299,7 @@ std::string Cross::CreatePlatformConfigDir()
     return path;
 }
 
-#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+#if defined(WIN32) && !defined(HX_DOS) && defined(_WIN32_WINNT)
 /* UTF-16 functions for Windows */
 
 void autoExpandEnvironmentVariablesW(std::wstring& text, bool dosvar) {
