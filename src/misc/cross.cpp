@@ -56,7 +56,7 @@ bool isKanji1_gbk(uint8_t chr), CodePageHostToGuestUTF16(char *d/*CROSS_LEN*/,co
 #define _mkdir(x) mkdir(x)
 #endif
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
     FILE* fopenW(const std::string& path, const char* mode) {
         std::wstring wmode;
         for(const char* p = mode; *p; ++p)

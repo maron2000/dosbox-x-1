@@ -1234,7 +1234,7 @@ bool Config::ParseConfigFile(char const * const configfilename) {
 
 #if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
     std::wstring wconfigfilename = Utf8ToW(configfilename);
-    std::wifstream in(wconfigfilename);
+    std::wifstream in(wconfigfilename.c_str());
 #else
     ifstream in(configfilename);
 #endif
