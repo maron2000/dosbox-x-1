@@ -517,16 +517,16 @@ bool Prop_string::SetValue(std::string const& input) {
 }
 
 bool Prop_string::CheckValue(Value const& in, bool warn) {
-    if (suggested_values.empty()) return true;
-    for(const_iter it = suggested_values.begin();it != suggested_values.end();++it) {
-        if ( (*it) == in) { //Match!
+
+    if(suggested_values.empty()) return true;
+
+    for(const_iter it = suggested_values.begin(); it != suggested_values.end(); ++it) {
+        if((*it) == in) { //Match!
             return true;
         }
-        if ((*it).ToString() == "%u") {
+        if((*it).ToString() == "%u") {
             uint32_t value;
-            if (sscanf(in.ToString().c_str(),"%u",&value) == 1) {
-                return true;
-            }
+            if(sscanf(in.ToString().c_str(), "%u", &value) == 1) { return true; }
         }
     }
     if (warn) LOG_MSG("\"%s\" is not a valid value for variable: %s.\nIt might now be reset to the default value: %s",in.ToString().c_str(),propname.c_str(),default_value.ToString().c_str());
@@ -841,6 +841,12 @@ Hex Section_prop::Get_hex(string const& _propname) const {
     return 0;
 }
 
+static inline void trim_null(std::string& s) {
+    size_t pos = s.find('\0');
+    if(pos != std::string::npos)
+        s.erase(pos);
+}
+
 bool Section_prop::HandleInputline(string const& gegevens) {
     string str1 = gegevens;
     string::size_type loc = str1.find('=');
@@ -857,6 +863,8 @@ bool Section_prop::HandleInputline(string const& gegevens) {
 	   ) val = val.substr(1,length - 2);
     /* trim the results in case there were spaces somewhere */
     trim(name);trim(val);
+    trim_null(name);
+    trim_null(val);
     for(it tel = properties.begin();tel != properties.end();++tel) {
         if (!strcasecmp((*tel)->propname.c_str(),name.c_str())) {
             if (!((*tel)->SetValue(val))) return false;
@@ -909,7 +917,9 @@ string Section_prop::GetPropValue(string const& _property) const {
  *      virtual, and therefore std::string should get a chance to free it's memory. */
 bool Section_line::HandleInputline(string const& line) {
     if (!data.empty()) data += "\n"; //Add return to previous line in buffer
-    data += line;
+    std::string temp = line;
+    trim_null(temp);
+    data += temp;
     return true;
 }
 
@@ -1221,7 +1231,13 @@ bool Config::ParseConfigFile(char const * const configfilename) {
     if (strlen(configfilename) >= PATH_MAX) {
         LOG_MSG("Warning: config file path %d characters is too long: %s", strlen(configfilename), configfilename);
     }
+
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+    std::wstring wconfigfilename = Utf8ToW(configfilename);
+    std::wifstream in(wconfigfilename);
+#else
     ifstream in(configfilename);
+#endif
     if (!in) {
         LOG(LOG_MISC,LOG_NORMAL)("CONFIG: Failed Loading %s as a config file", configfilename);
         return false;
@@ -1238,15 +1254,23 @@ bool Config::ParseConfigFile(char const * const configfilename) {
     if (pos == std::string::npos) pos = 0; //No directory then erase string
     current_config_dir.erase(pos);
 
-    string gegevens;
     Section* currentsection = NULL;
     Section* testsec = NULL;
-    while (getline(in,gegevens)) {
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+    std::wstring wgegevens;
+    while(std::getline(in, wgegevens)) {
+        std::string gegevens = WToUtf8(wgegevens);
+#else
+    std::string gegevens;
+    while(std::getline(in, gegevens)) {
+#endif
+
         if (gegevens.size()>10&&gegevens.substr(0,10)=="#DOSBOX-X:") gegevens=gegevens.substr(10);
         if (gegevens.size()>13&&gegevens.substr(0,14)=="#DOSBOX-X-ADV:") gegevens=gegevens.substr(14);
 
         /* strip leading/trailing whitespace */
         trim(gegevens);
+        trim_null(gegevens);
         if (!gegevens.size()) continue;
 
         switch(gegevens[0]) {
@@ -1277,7 +1301,9 @@ bool Config::ParseConfigFile(char const * const configfilename) {
 						Section_prop *section = static_cast<Section_prop *>(currentsection);
 						if (section!=NULL&&!(!strcasecmp(currentsection->GetName(), "4dos")&&(!strncasecmp(gegevens.c_str(), "rem=", 4)||!strncasecmp(gegevens.c_str(), "rem ", 4)))) {
 							if (!section->data.empty()) section->data += "\n";
-							section->data += gegevens;
+                            trim(gegevens);
+                            trim_null(gegevens);
+                            section->data += gegevens;
 						}
 					}
 				}

@@ -140,8 +140,11 @@ const char* get_time(void);
 #if defined(WIN32) && !defined(HX_DOS)
 std::string W32_ConfDir(bool create);
     #if !defined(_WIN32_WINDOWS)
-    std::wstring W32_ConfDirW(bool create);
+    void autoExpandEnvironmentVariablesW(std::wstring& text, bool dosvar);
+    std::wstring Utf8ToW(const std::string& s);
+    std::string WToUtf8(const std::wstring& wstr);
     #endif
 #endif
-
+void ResolvePath(std::string& in);
+FILE* fopenW(const std::string& path, const char* mode);
 #endif

@@ -56,6 +56,23 @@ bool isKanji1_gbk(uint8_t chr), CodePageHostToGuestUTF16(char *d/*CROSS_LEN*/,co
 #define _mkdir(x) mkdir(x)
 #endif
 
+#if defined(_WIN32)
+    FILE* fopenW(const std::string& path, const char* mode) {
+        std::wstring wmode;
+        for(const char* p = mode; *p; ++p)
+            wmode.push_back(static_cast<wchar_t>(*p));
+
+        // UTF-8 path → UTF-16
+        std::wstring wpath = Utf8ToW(path);
+
+        return _wfopen(wpath.c_str(), wmode.c_str());
+    }
+#else
+    FILE* fopenW(const std::string& path, const char* mode) {
+        return ::fopen(path.c_str(), mode);
+}
+#endif
+
 int resolveopt = 1;
 void autoExpandEnvironmentVariables(std::string & text, bool dosvar) {
     static std::regex env(dosvar?"\\%([^%]+)%":"\\$\\{([^}]+)\\}");
@@ -68,53 +85,74 @@ void autoExpandEnvironmentVariables(std::string & text, bool dosvar) {
 }
 
 // Resolve environment variables (%VAR% [DOS/Windows] or ${VAR} [Linux/macOS]), and tilde (~) in Linux/macOS
-void ResolvePath(std::string& in) {
-    if (!resolveopt) return;
-#if defined(WIN32)
-    if (resolveopt==3) return;
-    if (resolveopt==2) {autoExpandEnvironmentVariables(in, true);return;}
-    char path[300],temp[300],*tempd=temp;
-    strcpy(tempd, in.c_str());
-    if (strchr(tempd, '%')&&ExpandEnvironmentStrings(tempd,path,300))
-        tempd=path;
-    in=std::string(tempd);
-#elif defined(OS2)
-    if (resolveopt==3) return;
-    autoExpandEnvironmentVariables(in, true);
+void ResolvePath(std::string& path) {
+    // resolveopt = 0: ignore, 1: resolve homedir & expand env, 2: expand env only, 3: skip
+    if(!resolveopt || resolveopt == 3) return;
+
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+    //if(resolveopt == 2) { 
+    /* no need to resolve home directory for Windows (resolveopt == 1)*/
+        std::wstring wpath = Utf8ToW(path);
+        autoExpandEnvironmentVariablesW(wpath, true);
+        path = WToUtf8(wpath);
+        return;
+    //}
+
+#elif defined(OS2) || defined(HX_DOS) || defined(_WIN32_WINDOWS)
+    autoExpandEnvironmentVariables(path, true);
+
 #else
+    // Linux/macOS
     struct stat test;
-    if (stat(in.c_str(),&test))
-        Cross::ResolveHomedir(in);
-    if (resolveopt==3) return;
-    autoExpandEnvironmentVariables(in, resolveopt==2);
+    if(stat(path.c_str(), &test)) {
+        Cross::ResolveHomedir(path);
+    }
+
+    if(resolveopt != 2) {
+        autoExpandEnvironmentVariables(path, true);
+    }
+    else {
+        autoExpandEnvironmentVariables(path, false);
+    }
 #endif
 }
 
 #if defined(WIN32) && !defined(HX_DOS)
-static std::string W32_ConfDir(bool create) {
+std::string W32_ConfDir(bool create) {
+#if defined(_WIN32_WINDOWS) // Windows 95/98/ME
     char result[MAX_PATH] = { 0 };
-#if !defined(_WIN32_WINDOWS)
-    BOOL r = SHGetSpecialFolderPathA(NULL, result, CSIDL_LOCAL_APPDATA, create ? 1 : 0);
-    if(!r || result[0] == 0)
-        r = SHGetSpecialFolderPathA(NULL, result, CSIDL_APPDATA, create ? 1 : 0);
-#else
     BOOL r = GetModuleFileNameA(NULL, result, MAX_PATH);
-    while(r && result[r] != '\\') result[r--] = '\0';
-#endif
-
-    if(!r || result[0] == 0) {
-        const char* windir = getenv("windir");
-        if(!windir) windir = "c:\\windows";
-        strncpy(result, windir, MAX_PATH - 1);
-        result[MAX_PATH - 1] = '\0';
-        const char* appdata = "\\Application Data";
-        size_t len = strlen(result);
-        if(len + strlen(appdata) < MAX_PATH)
-            strcat(result, appdata);
-    }
+    int len = static_cast<int>(strlen(result));
+    while(len > 0 && result[len] != '\\') result[--len] = '\0';
 
     if(create) _mkdir(result);
     return std::string(result);
+
+#else // Windows NT
+    wchar_t result[MAX_PATH] = { 0 };
+    BOOL r = SHGetSpecialFolderPathW(NULL, result, CSIDL_LOCAL_APPDATA, create ? TRUE : FALSE);
+    if(!r || result[0] == L'\0')
+        r = SHGetSpecialFolderPathW(NULL, result, CSIDL_APPDATA, create ? TRUE : FALSE);
+
+    if(!r || result[0] == L'\0') {
+        const wchar_t* windir = _wgetenv(L"windir");
+        if(!windir) windir = L"C:\\Windows";
+
+        wcsncpy(result, windir, MAX_PATH - 1);
+        result[MAX_PATH - 1] = L'\0';
+        const wchar_t* appdata = L"\\Application Data";
+        if(wcslen(result) + wcslen(appdata) + 1 <= MAX_PATH)
+            wcscat(result, appdata);
+    }
+
+    if(create) {
+        if(_wmkdir(result) != 0 && errno != EEXIST) {
+            LOG_MSG("W32_ConfDir: Could not create config directory %s", WToUtf8(result).c_str());
+        }
+    }
+
+    return WToUtf8(result);
+#endif
 }
 #endif
 
@@ -263,55 +301,32 @@ std::string Cross::CreatePlatformConfigDir()
 
 #if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
 /* UTF-16 functions for Windows */
-static std::wstring W32_ConfDirW(bool create) {
-    wchar_t result[MAX_PATH] = { 0 };
-    BOOL r = SHGetSpecialFolderPathW(NULL, result, CSIDL_LOCAL_APPDATA, create ? TRUE : FALSE);
-    if(!r || result[0] == L'\0')
-        r = SHGetSpecialFolderPathW(NULL, result, CSIDL_APPDATA, create ? TRUE : FALSE);
 
-    // Fallback (windir)
-    if(!r || result[0] == L'\0') {
-        const wchar_t* windir = _wgetenv(L"windir");
-        if(!windir) windir = L"C:\\Windows";
+void autoExpandEnvironmentVariablesW(std::wstring& text, bool dosvar) {
+/* dosvar == true: %VAR%, false: ${VAR} */
 
-        wcsncpy(result, windir, MAX_PATH - 1);
-        result[MAX_PATH - 1] = L'\0';
+    std::wregex env(dosvar ? L"\\%([^%]+)%" : L"\\$\\{([^}]+)\\}");
+    std::wsmatch match;
 
-        const wchar_t* appdata = L"\\Application Data";
-        if(wcslen(result) + wcslen(appdata) + 1 <= MAX_PATH)
-            wcscat(result, appdata);
+    while(std::regex_search(text, match, env)) {
+        const wchar_t* s = _wgetenv(match[1].str().c_str());
+        std::wstring var(s ? s : L"");
+        text.replace(match.position(0), match.length(0), var);
     }
-
-    if(create) {
-        if(_wmkdir(result) != 0 && errno != EEXIST) {
-            LOG_MSG("W32_ConfDirW: Could not create config directory %ls", result);
-        }
-    }
-    return std::wstring(result);
 }
 
-std::wstring Cross::CreatePlatformConfigDirW()
-{
-    std::wstring wdir = W32_ConfDirW(true);
-    if(!wdir.empty()) {
-        wdir += L"\\DOSBox-X";
-
-        if(_wmkdir(wdir.c_str()) != 0 && errno != EEXIST) {
-            LOG_MSG("CreatePlatformConfigDirW: Could not create directory %ls", wdir.c_str());
-        }
-
-        wdir += CROSS_FILESPLITW; // CROSS_FILESPLITW が単一文字ならこれでOK
-    }
-    return wdir;
+inline std::wstring Utf8ToW(const std::string& s) {
+    if(s.empty()) return {};
+    int sz = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), NULL, 0);
+    std::wstring ws(sz, 0);
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), &ws[0], sz);
+    return ws;
 }
-std::wstring Cross::GetPlatformConfigDirW()
-{
-    std::wstring wdir = W32_ConfDirW(true);
-    if(!wdir.empty()) {
-        wdir += L"\\DOSBox-X";
-        wdir += CROSS_FILESPLITW;
-    }
-    return wdir;
+inline std::string WToUtf8(const std::wstring& wstr) {
+    int sz = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, NULL, 0, NULL, NULL);
+    std::string str(sz, 0);
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], sz, NULL, NULL);
+    return str;
 }
 #endif
 

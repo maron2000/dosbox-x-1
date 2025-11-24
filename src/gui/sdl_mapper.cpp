@@ -4818,7 +4818,7 @@ void MAPPER_AddHandler(MAPPER_Handler * handler,MapKeys key,Bitu mods,char const
 
 static void MAPPER_SaveBinds(void) {
     std::string content="";
-    FILE * loadfile=fopen(mapper.filename.c_str(),"rt");
+    FILE * loadfile=fopenW(mapper.filename,"rt");
     if (loadfile) {
         char secname[512], linein[512], *line=linein;
         strcpy(secname, "");
@@ -4834,7 +4834,7 @@ static void MAPPER_SaveBinds(void) {
         fclose(loadfile);
     }
 
-    FILE * savefile=fopen(mapper.filename.c_str(),"wt+");
+    FILE * savefile=fopenW(mapper.filename,"wt+");
     if (!savefile) {
         LOG_MSG("Can't open %s for saving the mappings",mapper.filename.c_str());
         return;
@@ -4861,8 +4861,14 @@ static void MAPPER_SaveBinds(void) {
     }
     fclose(savefile);
 #if defined(WIN32)
+#if !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+    wchar_t path[MAX_PATH];
+    std::wstring filenameW = Utf8ToW(mapper.filename);
+    if(GetFullPathNameW(filenameW.c_str(), MAX_PATH, path, NULL)) LOG_MSG("Saved mapper file: %s", path);
+#else
     char path[MAX_PATH];
     if (GetFullPathName(mapper.filename.c_str(), MAX_PATH, path, NULL)) LOG_MSG("Saved mapper file: %s", path);
+#endif
 #elif defined(HAVE_REALPATH)
     char path[PATH_MAX];
     if (realpath(mapper.filename.c_str(), path) != NULL) LOG_MSG("Saved mapper file: %s", path);
@@ -4873,7 +4879,7 @@ static void MAPPER_SaveBinds(void) {
 }
 
 static bool MAPPER_LoadBinds(void) {
-    FILE * loadfile=fopen(mapper.filename.c_str(),"rt");
+    FILE * loadfile=fopenW(mapper.filename.c_str(),"rt");
     if (!loadfile) return false;
 	ClearAllBinds();
     bool othersec=false, hasbind=false;
@@ -5697,7 +5703,6 @@ void MAPPER_Init(void) {
 }
 
 std::string GetDOSBoxXPath(bool withexe=false);
-void ResolvePath(std::string& in);
 void ReloadMapper(Section_prop *section, bool init) {
     if (!init&&control->opt_defaultmapper) return;
     Prop_path* pp;
@@ -5711,9 +5716,9 @@ void ReloadMapper(Section_prop *section, bool init) {
     mapper.filename = pp->realpath;
     ResolvePath(mapper.filename);
     bool appendmap=false;
-    FILE * loadfile=fopen(mapper.filename.c_str(),"rt");
+    FILE * loadfile=fopenW(mapper.filename,"rt");
     if (!loadfile) {
-        loadfile=fopen((mapper.filename+".map").c_str(),"rt");
+        loadfile=fopenW((mapper.filename+".map"),"rt");
         if (loadfile) appendmap=true;
     }
     if (!loadfile) {
@@ -5721,9 +5726,9 @@ void ReloadMapper(Section_prop *section, bool init) {
         config_path = Cross::GetPlatformConfigDir();
         res_path = Cross::GetPlatformResDir();
         if (mapper.filename.size() && exepath.size()) {
-            loadfile=fopen((exepath+mapper.filename).c_str(),"rt");
+            loadfile=fopenW((exepath+mapper.filename),"rt");
             if (!loadfile) {
-                loadfile=fopen((exepath+mapper.filename+".map").c_str(),"rt");
+                loadfile=fopenW((exepath+mapper.filename+".map"),"rt");
                 if (loadfile) appendmap=true;
             }
             if (loadfile) {
@@ -5736,9 +5741,9 @@ void ReloadMapper(Section_prop *section, bool init) {
             }
         }
         if (!loadfile && mapper.filename.size() && config_path.size()) {
-            loadfile=fopen((config_path+mapper.filename).c_str(),"rt");
+            loadfile=fopenW((config_path+mapper.filename),"rt");
             if (!loadfile) {
-                loadfile=fopen((config_path+mapper.filename+".map").c_str(),"rt");
+                loadfile=fopenW((config_path+mapper.filename+".map"),"rt");
                 if (loadfile) appendmap=true;
             }
             if (loadfile) {
@@ -5751,9 +5756,9 @@ void ReloadMapper(Section_prop *section, bool init) {
             }
         }
         if (!loadfile && mapper.filename.size() && res_path.size()) {
-            loadfile=fopen((res_path+mapper.filename).c_str(),"rt");
+            loadfile=fopenW((res_path+mapper.filename).c_str(),"rt");
             if (!loadfile) {
-                loadfile=fopen((res_path+mapper.filename+".map").c_str(),"rt");
+                loadfile=fopenW((res_path+mapper.filename+".map").c_str(),"rt");
                 if (loadfile) appendmap=true;
             }
             if (loadfile) {

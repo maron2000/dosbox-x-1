@@ -8492,9 +8492,25 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
         /* -- -- if none found, use dosbox-x.conf or dosbox.conf */
         std::string cur_dir;
         std::unique_ptr<char[]> cwd(new char[PATH_MAX]);
-        if(getcwd(cwd.get(), PATH_MAX) != nullptr) {
+#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+        wchar_t wpath[MAX_PATH];
+        if(_wgetcwd(wpath, MAX_PATH)) {
+            int size_needed = WideCharToMultiByte(CP_UTF8, 0, wpath, -1, nullptr, 0, nullptr, nullptr);
+            if(size_needed > 0) {
+                cur_dir.resize(size_needed);
+                WideCharToMultiByte(CP_UTF8, 0, wpath, -1, &cur_dir[0], size_needed, nullptr, nullptr);
+
+                if(!cur_dir.empty() && cur_dir.back() == '\0')
+                    cur_dir.pop_back();
+                cur_dir += "\\";
+            }
+        }
+#else
+        if(getcwd(cwd.get(), PATH_MAX) != nullptr)
+        {
             cur_dir = std::string(cwd.get()) + CROSS_FILESPLIT;
         }
+#endif
         else {
             cur_dir.clear();
         }
@@ -8814,32 +8830,36 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
         resolveopt = resolvestr=="true"||resolvestr=="1"?1:(resolvestr=="dosvar"?2:(resolvestr=="tilde"?3:0));
         void ResolvePath(std::string& in);
         ResolvePath(workdirdef);
-        if (((workdiropt == "custom" && !control->opt_used_defaultdir) || workdiropt == "force") && workdirdef.size()) {
-            if(chdir(workdirdef.c_str()) == -1) {
-                LOG(LOG_GUI, LOG_ERROR)("sdlmain.cpp main() failed to change directories for workdiropt 'custom' or 'force'.");
-            }
+        std::string target_dir;
+
+        // --- decide target_dir ---
+        if (((workdiropt == "custom" && !control->opt_used_defaultdir) ||
+             workdiropt == "force") &&
+            workdirdef.size()) {
+            target_dir = workdirdef;
+
         } else if (workdiropt == "userconfig") {
-            std::string config_path;
-            config_path = Cross::GetPlatformConfigDir();
-            if(config_path.size()) {
-                if(chdir(config_path.c_str()) == -1) {
-                    LOG(LOG_GUI, LOG_ERROR)("sdlmain.cpp main() failed to change directories for workdiropt 'userconfig'.");
-                }
-            }
+            target_dir = Cross::GetPlatformConfigDir();
         } else if (workdiropt == "program" && exepath.size()) {
-            if(chdir(exepath.c_str()) == -1) {
-                LOG(LOG_GUI, LOG_ERROR)("sdlmain.cpp main() failed to change directories for workdiropt 'program'.");
-            }
+            target_dir = exepath;
         } else if (workdiropt == "config" && control->configfiles.size()) {
-            std::string configpath=control->configfiles.front();
-            size_t found=configpath.find_last_of("/\\");
-            if(found != string::npos) {
-                if(chdir(configpath.substr(0, found + 1).c_str()) == -1) {
-                    LOG(LOG_GUI, LOG_ERROR)("sdlmain.cpp main() failed to change directories for workdiropt 'config'.");
-                }
+            std::string configpath = control->configfiles.front();
+            size_t found = configpath.find_last_of("/\\");
+            if (found != std::string::npos)
+                target_dir = configpath.substr(0, found + 1);
+        }
+        if (!target_dir.empty()) {
+        #if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
+            std::wstring w = Utf8ToW(target_dir);
+            if(_wchdir(w.c_str()) == -1) {
+        #else
+            if (chdir(target_dir.c_str()) == -1) {
+        #endif
+                LOG(LOG_GUI, LOG_ERROR)(
+                    "sdlmain.cpp main() failed to change directories for workdiropt '%s'.",
+                    workdiropt.c_str());
             }
         }
-
         {
             std::unique_ptr<char[]> cwd(new char[PATH_MAX]);
             if(getcwd(cwd.get(), PATH_MAX))
