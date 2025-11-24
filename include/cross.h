@@ -71,10 +71,6 @@ public:
 	static std::string GetPlatformConfigDir(void);
 	static std::string GetPlatformConfigName(void);
 	static std::string CreatePlatformConfigDir(void);
-#if defined(WIN32) && !defined(HX_DOS) && !defined(_WIN32_WINDOWS)
-    static std::wstring GetPlatformConfigDirW(void);
-    static std::wstring CreatePlatformConfigDirW(void);
-#endif
     static void ResolveHomedir(std::string & temp_line);
 	static void CreateDir(std::string const& in);
 	static bool IsPathAbsolute(std::string const& in);

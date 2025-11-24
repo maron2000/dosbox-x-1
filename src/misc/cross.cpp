@@ -315,14 +315,14 @@ void autoExpandEnvironmentVariablesW(std::wstring& text, bool dosvar) {
     }
 }
 
-inline std::wstring Utf8ToW(const std::string& s) {
+std::wstring Utf8ToW(const std::string& s) {
     if(s.empty()) return {};
     int sz = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), NULL, 0);
     std::wstring ws(sz, 0);
     MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), &ws[0], sz);
     return ws;
 }
-inline std::string WToUtf8(const std::wstring& wstr) {
+std::string WToUtf8(const std::wstring& wstr) {
     int sz = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, NULL, 0, NULL, NULL);
     std::string str(sz, 0);
     WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &str[0], sz, NULL, NULL);
