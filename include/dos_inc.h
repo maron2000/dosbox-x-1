@@ -435,6 +435,7 @@ static INLINE uint16_t DOS_PackDate(uint16_t year,uint16_t mon,uint16_t day) {
 #define DOSERR_NO_MORE_FILES 18
 #define DOSERR_WRITE_PROTECTED 19
 #define DOSERR_DRIVE_NOT_READY 21
+#define DOSERR_WRITE_FAULT 29
 #define DOSERR_FILE_ALREADY_EXISTS 80
 
 

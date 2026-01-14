@@ -2817,17 +2817,20 @@ bool LocalFile::Read(uint8_t * data,uint16_t * size) {
 }
 
 bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
-	uint32_t lastflags = this->flags & 0xf;
+
+    bool use_native_io = (file_access_tries > 0);
+    uint32_t lastflags = this->flags & 0xf;
 	if (lastflags == OPEN_READ || lastflags == OPEN_READ_NO_MOD) {	// check if file opened in read-only mode
 		DOS_SetError(DOSERR_ACCESS_DENIED);
 		return false;
 	}
 #if defined(WIN32)
-    if (file_access_tries>0) {
+    if (use_native_io) {
         HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(fhandle));
         if (*size == 0) {
             if (SetEndOfFile(hFile)) {
                 UpdateLocalDateTime();
+                last_action = WRITE;
                 return true;
             } else {
                 DOS_SetError((uint16_t)GetLastError());
@@ -2839,6 +2842,7 @@ bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
             if (WriteFile(hFile, data, (uint32_t)*size, (LPDWORD)&bytesWritten, NULL)) {
                 *size = (uint16_t)bytesWritten;
                 UpdateLocalDateTime();
+                last_action = WRITE;
                 return true;
             }
             Sleep(25);																	// If failed (should be region locked? (not documented in MSDN)), wait 25 millisecs
@@ -2849,19 +2853,43 @@ bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
     }
 #endif
 	if (last_action==READ) {
-		if (file_access_tries>0) {
+		if (use_native_io) {
 			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
 			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
-		} else fseek(fhandle,ftell(fhandle),SEEK_SET);
+		}
+        else {
+            fflush(fhandle);
+            fseek(fhandle, 0, SEEK_CUR);
+        }
 	}
 	last_action=WRITE;
 	if (*size==0){
-		uint32_t pos=file_access_tries>0?lseek(fileno(fhandle),0,SEEK_CUR):ftell(fhandle);
-		return !ftruncate(fileno(fhandle),pos);
-	} else {
-		*size=file_access_tries>0?(uint16_t)write(fileno(fhandle),data,*size):(uint16_t)fwrite(data,1,*size,fhandle);
-		return true;
+		uint32_t pos=use_native_io ?lseek(fileno(fhandle),0,SEEK_CUR):ftell(fhandle);
+        if(pos < 0 || ftruncate(fileno(fhandle), pos) != 0) {
+            DOS_SetError(DOSERR_WRITE_FAULT);
+            return false;
+        }
+        UpdateLocalDateTime();
+        return true;
 	}
+    uint16_t written;
+    if(use_native_io) {
+        written = write(fileno(fhandle), data, *size);
+    }
+    else {
+        written = fwrite(data, 1, *size, fhandle);
+        if(written == 0 && ferror(fhandle))
+            written = -1;
+    }
+    if(written < 0) {
+        DOS_SetError(DOSERR_WRITE_FAULT);
+        *size = 0;
+        return false;
+    }
+
+    *size = written;
+    UpdateLocalDateTime();
+    return true;
 }
 
 #ifndef WIN32
