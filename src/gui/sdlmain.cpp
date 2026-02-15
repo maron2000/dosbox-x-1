@@ -183,7 +183,6 @@ char* revert_escape_newlines(const char* aMessage);
 
 #include <output/output_direct3d11.h>
 #include <output/output_direct3d.h>
-#include <output/output_metal.h>
 #include <output/output_opengl.h>
 #include <output/output_surface.h>
 #include <output/output_tools.h>
@@ -192,6 +191,16 @@ char* revert_escape_newlines(const char* aMessage);
 static bool init_output = false;
 bool switch_to_d3d11_on_startup = false;
 bool switch_to_metal_on_startup = false;
+
+/* #include <output/output_metal.h> */ // includes Objective-C code
+void metal_init();
+void OUTPUT_Metal_Select();
+Bitu OUTPUT_Metal_GetBestMode(Bitu flags);
+bool OUTPUT_Metal_StartUpdate(uint8_t*& pixels, Bitu& pitch);
+void OUTPUT_Metal_EndUpdate(const uint16_t* changedLines);
+Bitu OUTPUT_Metal_SetSize(void);
+void OUTPUT_Metal_Shutdown();
+void OUTPUT_Metal_CheckSourceResolution();
 
 #if defined(WIN32)
 #include "resource.h"
@@ -2224,7 +2233,7 @@ Bitu GFX_SetSize(Bitu width, Bitu height, Bitu flags, double scalex, double scal
 #endif
 #if defined(MACOSX) && defined(C_SDL2)
         case SCREEN_METAL:
-            retFlags = OUTPUT_METAL_SetSize();
+            retFlags = OUTPUT_Metal_SetSize();
             break;
 #endif
 #if defined(USE_TTF)
@@ -3205,7 +3214,7 @@ bool GFX_StartUpdate(uint8_t* &pixels,Bitu &pitch)
 #endif
 #if defined(MACOSX) && defined(C_SDL2)
         case SCREEN_METAL:
-            return OUTPUT_METAL_StartUpdate(pixels, pitch);
+            return OUTPUT_Metal_StartUpdate(pixels, pitch);
             break;
 #endif
         default:
@@ -3321,7 +3330,7 @@ switch_type:
 #endif
 #if defined(MACOSX) && defined(C_SDL2)
         case SCREEN_METAL:
-            OUTPUT_METAL_EndUpdate(changedLines);
+            OUTPUT_Metal_EndUpdate(changedLines);
             break;
 #endif
         default:
@@ -3461,7 +3470,7 @@ static void GUI_ShutDown(Section * /*sec*/) {
 #endif
 #if defined(MACOSX) && defined(C_SDL2)
         case SCREEN_METAL:
-            OUTPUT_METAL_Shutdown();
+            OUTPUT_Metal_Shutdown();
             break;
 #endif
         default:
