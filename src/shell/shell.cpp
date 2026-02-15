@@ -888,6 +888,7 @@ bool finish_prepare = false;
 void change_output(int type);
 bool setColors(const char* colorArray, int n);
 extern bool switch_to_d3d11_on_startup;
+extern bool switch_to_metal_on_startup;
 
 void DOS_Shell::Prepare(void) {
     if (this == first_shell) {
@@ -895,6 +896,12 @@ void DOS_Shell::Prepare(void) {
         if(switch_to_d3d11_on_startup){
             switch_to_d3d11_on_startup = false;
             change_output(13);
+        }
+#endif
+#if defined(MACOSX) && defined(C_SDL2)
+        if(switch_to_metal_on_startup){
+            switch_to_metal_on_startup = false;
+            change_output(14);
         }
 #endif
 #if defined(USE_TTF)
