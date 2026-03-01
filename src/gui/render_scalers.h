@@ -69,19 +69,27 @@ template <typename T> struct scct_t {
 };
 typedef scct_t<uint8_t> scalerChangeCache_t;
 
-typedef union {
-	// an unsigned int and a pointer, regardless of pointer type, is always the same size
-	template <typename T> struct ctd_t {
-		unsigned int pitch,width;
-		uint8_t* d;
+template <typename T>
+struct scalerFrameCacheTyped {
+    // an unsigned int and a pointer, regardless of pointer type, is always the same size
+	unsigned int pitch, width;
+    uint8_t* d;
 
-		inline T *operator[](unsigned int y) { return (T*)(d + (y * pitch)); }
-	};
+    inline T* operator[](unsigned int y) {
+        return reinterpret_cast<T*>(d + (y * pitch));
+    }
 
-	ctd_t<uint32_t> b32;
-	ctd_t<uint16_t> b16;
-	ctd_t<uint8_t> b8;
-} scalerFrameCache_t;
+    inline const T* operator[](unsigned int y) const {
+        return reinterpret_cast<const T*>(d + (y * pitch));
+    }
+};
+
+union scalerFrameCache_t {
+    scalerFrameCacheTyped<uint32_t> b32;
+    scalerFrameCacheTyped<uint16_t> b16;
+    scalerFrameCacheTyped<uint8_t>  b8;
+};
+
 #endif
 #if RENDER_USE_ADVANCED_SCALERS>1
 extern scalerChangeCache_t scalerChangeCache;

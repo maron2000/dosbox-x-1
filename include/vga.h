@@ -163,80 +163,80 @@ inline MonochromeColor& operator++(MonochromeColor& color)
     return color;
 }
 
-typedef struct {
-	bool resizing;
-	Bitu width;
-	Bitu height;
-	Bitu blocks;
-	Bitu address;
-	Bitu panning;
-	Bitu bytes_skip;
-	uint8_t *linear_base;
-	Bitu linear_mask;
-	Bitu planar_mask;
-	Bitu address_add;
-	Bitu line_length;
-	Bitu address_line_total;
-	Bitu address_line;
-	Bitu lines_total;
-	Bitu vblank_skip;
-	Bitu lines_done;
-	Bitu split_line;
-	Bitu hsync_events;
-	Bitu byte_panning_shift;
-	Bitu render_step,render_max;
-	struct {
-		double framestart;
-		double vrstart, vrend;		// V-retrace
-		double hrstart, hrend;		// H-retrace
-		double hblkstart, hblkend;	// H-blanking
-		double vblkstart, vblkend;	// V-Blanking
-		double vdend, vtotal;
-		double hdend, htotal;
-		float singleline_delay;
-	} delay;
-	double screen_ratio;
-	uint8_t font[516*1024]; /* enlarged to 516KB for PC-98 character font data (256*16) + (128*2*128*16) */
-	uint8_t * font_tables[2];
-	Bitu blinking;
-	bool blink;
-	bool char9dot;
-	struct {
-		Bitu address;
-		uint8_t sline,eline;
-		uint8_t count,delay;
-		bool blinkon;
-		uint8_t enabled;
-	} cursor;
-	Drawmode mode;
-	bool has_split;
-	bool must_draw_again;
-	bool must_complete_frame;
-	bool vret_triggered;
-	bool vga_override;
-	bool modeswitch_set;
-	bool doublescan_set;
-	bool doublescan_effect;
-	bool char9_set;
-	Bitu bpp;
-	double clock;
-	double oscclock;
+struct VGA_Draw {
+    bool resizing;
+    Bitu width;
+    Bitu height;
+    Bitu blocks;
+    Bitu address;
+    Bitu panning;
+    Bitu bytes_skip;
+    uint8_t* linear_base;
+    Bitu linear_mask;
+    Bitu planar_mask;
+    Bitu address_add;
+    Bitu line_length;
+    Bitu address_line_total;
+    Bitu address_line;
+    Bitu lines_total;
+    Bitu vblank_skip;
+    Bitu lines_done;
+    Bitu split_line;
+    Bitu hsync_events;
+    Bitu byte_panning_shift;
+    Bitu render_step, render_max;
 
-	/* memory write checker will do:
-	 *
-	 * if ((addr-draw_base_planar) < draw_base_size)
-	 *   ...
-	 *
-	 * memory write checking must be as simple as possible because mem write code is called VERY OFTEN */
-	unsigned int draw_base_planar=0;
-	unsigned int draw_base_size=0;
+    struct Delay {
+        double framestart;
+        double vrstart, vrend;
+        double hrstart, hrend;
+        double hblkstart, hblkend;
+        double vblkstart, vblkend;
+        double vdend, vtotal;
+        double hdend, htotal;
+        float singleline_delay;
+    } delay;
 
-	uint8_t cga_snow[80];			// one bit per horizontal column where snow should occur
+    double screen_ratio;
 
-	/*Color and brightness for monochrome display*/
-	MonochromeColor monochrome_pal;
-	uint8_t monochrome_bright;
-} VGA_Draw;
+    uint8_t font[516 * 1024];
+    uint8_t* font_tables[2];
+
+    Bitu blinking;
+    bool blink;
+    bool char9dot;
+
+    struct Cursor {
+        Bitu address;
+        uint8_t sline, eline;
+        uint8_t count, delay;
+        bool blinkon;
+        uint8_t enabled;
+    } cursor;
+
+    Drawmode mode;
+    bool has_split;
+    bool must_draw_again;
+    bool must_complete_frame;
+    bool vret_triggered;
+    bool vga_override;
+    bool modeswitch_set;
+    bool doublescan_set;
+    bool doublescan_effect;
+    bool char9_set;
+    Bitu bpp;
+
+    double clock;
+    double oscclock;
+
+    unsigned int draw_base_planar = 0;
+    unsigned int draw_base_size   = 0;
+
+    uint8_t cga_snow[80];
+
+    MonochromeColor monochrome_pal;
+    uint8_t monochrome_bright;
+};
 
 typedef struct {
 	uint8_t curmode;
