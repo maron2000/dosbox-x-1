@@ -109,6 +109,49 @@
 #define MAX_PATH PATH_MAX
 #endif
 
+ /* Ensure 64-bit file offsets on POSIX systems */
+#if !defined(WIN32)
+    /* If not defined, define it */
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#else
+    /* If defined but not 64, force override */
+#if _FILE_OFFSET_BITS != 64
+#undef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+#endif
+#endif
+
+/* Provide 64-bit fseek/ftell abstraction for MinGW */
+#if defined(WIN32)
+#if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
+    /* Old MinGW may not have _fseeki64 */
+#define FSEEK64 fseeko
+#define FTELL64 ftello
+#define LSEEK64 lseek
+#define FTRUNCATE64(fd, size) ftruncate(fd, size)
+#else
+#define FSEEK64 _fseeki64
+#define FTELL64 _ftelli64
+#define LSEEK64 _lseeki64
+#define FTRUNCATE64(fd, size) _chsize_s(fd, size)
+#endif
+
+#else
+#define FSEEK64 fseeko
+#define FTELL64 ftello
+#define LSEEK64 lseek
+#define FTRUNCATE64(fd, size) ftruncate(fd, size)
+#endif
+
+/* Provide 64-bit truncate abstraction */
+#if defined(WIN32)
+
+#else
+#define FTRUNCATE64(fd, size) ftruncate(fd, size)
+#endif
+
 uint16_t ldid[256];
 std::string ldir[256];
 static host_cnv_char_t cpcnv_temp[4096];
@@ -2797,10 +2840,10 @@ bool LocalFile::Read(uint8_t * data,uint16_t * size) {
 #endif
 	if (last_action==WRITE) {
 		if (file_access_tries>0) {
-			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
-			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
+			auto pos = LSEEK64(fileno(fhandle),0,SEEK_CUR);
+			if (pos>-1) LSEEK64(fileno(fhandle),pos,SEEK_SET);
 		} else
-			fseek(fhandle,ftell(fhandle),SEEK_SET);
+			FSEEK64(fhandle,FTELL64(fhandle),SEEK_SET);
         if (!newtime) UpdateLocalDateTime();
     }
 	last_action=READ;
@@ -2816,27 +2859,36 @@ bool LocalFile::Read(uint8_t * data,uint16_t * size) {
 	return true;
 }
 
-bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
-	uint32_t lastflags = this->flags & 0xf;
-	if (lastflags == OPEN_READ || lastflags == OPEN_READ_NO_MOD) {	// check if file opened in read-only mode
-		DOS_SetError(DOSERR_ACCESS_DENIED);
-		return false;
-	}
+bool LocalFile::Write(const uint8_t* data, uint16_t* size) {
+    uint32_t lastflags = this->flags & 0xf;
+    if(lastflags == OPEN_READ || lastflags == OPEN_READ_NO_MOD) {	// check if file opened in read-only mode
+        DOS_SetError(DOSERR_ACCESS_DENIED);
+        return false;
+    }
 #if defined(WIN32)
-    if (file_access_tries>0) {
+    if(file_access_tries > 0) {
         HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(fhandle));
-        if (*size == 0) {
-            if (SetEndOfFile(hFile)) {
+        if(*size == 0) {
+            /* Truncate using 64-bit API */
+            LARGE_INTEGER li;
+            li.QuadPart = 0;
+            li.LowPart = SetFilePointer(hFile, li.LowPart, &li.HighPart, FILE_CURRENT);
+            if(li.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
+                DOS_SetError((uint16_t)GetLastError());
+                return false;
+            }
+            if(SetEndOfFile(hFile)) {
                 UpdateLocalDateTime();
                 return true;
-            } else {
+            }
+            else {
                 DOS_SetError((uint16_t)GetLastError());
                 return false;
             }
         }
         uint32_t bytesWritten;
-        for (int tries = file_access_tries; tries; tries--) {							// Try three times
-            if (WriteFile(hFile, data, (uint32_t)*size, (LPDWORD)&bytesWritten, NULL)) {
+        for(int tries = file_access_tries; tries; tries--) {							// Try three times
+            if(WriteFile(hFile, data, (uint32_t)*size, (LPDWORD)&bytesWritten, NULL)) {
                 *size = (uint16_t)bytesWritten;
                 UpdateLocalDateTime();
                 return true;
@@ -2848,22 +2900,41 @@ bool LocalFile::Write(const uint8_t * data,uint16_t * size) {
         return false;
     }
 #endif
-	if (last_action==READ) {
-		if (file_access_tries>0) {
-			off_t pos = lseek(fileno(fhandle),0,SEEK_CUR);
-			if (pos>-1) lseek(fileno(fhandle),pos,SEEK_SET);
-		} else fseek(fhandle,ftell(fhandle),SEEK_SET);
-	}
-	last_action=WRITE;
-	if (*size==0){
-		uint32_t pos=file_access_tries>0?lseek(fileno(fhandle),0,SEEK_CUR):ftell(fhandle);
-		return !ftruncate(fileno(fhandle),pos);
-	} else {
-		*size=file_access_tries>0?(uint16_t)write(fileno(fhandle),data,*size):(uint16_t)fwrite(data,1,*size,fhandle);
-		return true;
-	}
+    if(last_action == READ) {
+        if(file_access_tries > 0) {
+            /* Synchronize file position when switching from read to write */
+            if(LSEEK64(fileno(fhandle), 0, SEEK_CUR) < 0) {
+                /* ignore error */
+            }
+        }
+        else {
+            /* Required by C standard when switching from read to write */
+            FSEEK64(fhandle, 0, SEEK_CUR);
+        }
+    }
+    last_action = WRITE;
+    if(*size == 0) {
+        /* Truncate to current 64-bit file position */
+        auto pos = file_access_tries > 0 ? LSEEK64(fileno(fhandle), 0, SEEK_CUR) : FTELL64(fhandle);
+        return FTRUNCATE64(fileno(fhandle), pos) == 0;
+    }
+    else {
+        /* Safe write with error handling */
+        if(file_access_tries > 0) {
+            int ret = write(fileno(fhandle), data, *size);
+            if(ret < 0) {
+                *size = 0;
+                return false;
+            }
+            *size = (uint16_t)ret;
+        }
+        else {
+            size_t ret = fwrite(data, 1, *size, fhandle);
+            *size = (uint16_t)ret;
+        }
+        return true;
+    }
 }
-
 #ifndef WIN32
 bool toLock(int fd, bool is_lock, uint32_t pos, uint16_t size) {
     struct flock larg;
@@ -2989,14 +3060,33 @@ bool LocalFile::Seek(uint32_t * pos,uint32_t type) {
 	//TODO Give some doserrorcode;
 		return false;//ERROR
 	}
+    /* Convert DOS 32-bit position to 64-bit offset */
+    int64_t offset;
+    if(seektype == SEEK_SET) {
+        /* absolute position (unsigned) */
+        offset = static_cast<int64_t>(*pos);
+    }
+    else {
+        /* relative position (signed) */
+        offset = static_cast<int64_t>(static_cast<int32_t>(*pos));
+    }
 #if defined(WIN32)
     if (file_access_tries>0) {
         HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(fhandle));
-        DWORD dwPtr = SetFilePointer(hFile, *pos, NULL, type);
-        if (dwPtr == INVALID_SET_FILE_POINTER && !strcmp(RunningProgram, "BTHORNE"))	// Fix for Black Thorne
-            dwPtr = SetFilePointer(hFile, 0, NULL, DOS_SEEK_END);
-        if (dwPtr != INVALID_SET_FILE_POINTER) {										// If success
-            *pos = (uint32_t)dwPtr;
+        /* Use 64-bit SetFilePointer */
+        LARGE_INTEGER li;
+        li.QuadPart = offset;
+
+        li.LowPart = SetFilePointer(hFile, li.LowPart, &li.HighPart, seektype);
+
+        if(li.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR &&
+            !strcmp(RunningProgram, "BTHORNE")) {
+            /* Fix for Black Thorne */
+            li.LowPart = SetFilePointer(hFile, 0, NULL, SEEK_END);
+        }
+
+        if(li.LowPart != INVALID_SET_FILE_POINTER || GetLastError() == NO_ERROR) {
+            *pos = (uint32_t)li.QuadPart;
             return true;
         }
         DOS_SetError((uint16_t)GetLastError());
@@ -3004,15 +3094,22 @@ bool LocalFile::Seek(uint32_t * pos,uint32_t type) {
     }
 #endif
 	bool fail;
-	if (file_access_tries>0) fail=lseek(fileno(fhandle),*reinterpret_cast<int32_t*>(pos),seektype)==-1;
-	else fail=fseek(fhandle,*reinterpret_cast<int32_t*>(pos),seektype)!=0;
+    if(file_access_tries > 0) {
+        /* Use 64-bit lseek */
+        auto r = LSEEK64(fileno(fhandle), offset, seektype);
+        fail = (r == -1);
+    }
+    else {
+        /* Use 64-bit stdio seek */
+        fail = FSEEK64(fhandle, offset, seektype) != 0;
+    }
 	if (fail) {
 		// Out of file range, pretend everything is ok
 		// and move file pointer top end of file... ?! (Black Thorne)
 		if (file_access_tries>0)
-			lseek(fileno(fhandle),0,SEEK_END);
+			LSEEK64(fileno(fhandle),0,SEEK_END);
 		else
-			fseek(fhandle,0,SEEK_END);
+			FSEEK64(fhandle,0,SEEK_END);
 	}
 #if 0
 	fpos_t temppos;
@@ -3020,7 +3117,7 @@ bool LocalFile::Seek(uint32_t * pos,uint32_t type) {
 	uint32_t * fake_pos=(uint32_t*)&temppos;
 	*pos=*fake_pos;
 #endif
-	*pos=file_access_tries>0?(uint32_t)lseek(fileno(fhandle),0,SEEK_CUR):(uint32_t)ftell(fhandle);
+	*pos= GetSeekPos();
 	last_action=NONE;
 	return true;
 }
@@ -3099,7 +3196,8 @@ uint16_t LocalFile::GetInformation(void) {
 
 
 uint32_t LocalFile::GetSeekPos() {
-	return file_access_tries>0?(uint32_t)lseek(fileno(fhandle),0,SEEK_CUR):(uint32_t)ftell( fhandle );
+    /* Use 64-bit file position APIs */
+    return file_access_tries > 0 ? (uint32_t)LSEEK64(fileno(fhandle), 0, SEEK_CUR) : (uint32_t)FTELL64(fhandle);
 }
 
 LocalFile::LocalFile() {}
