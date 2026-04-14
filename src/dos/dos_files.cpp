@@ -2768,14 +2768,15 @@ void POD_Load_DOS_Files( std::istream& stream )
 
 			// - reloc ptr
 			READ_POD( &file_valid, file_valid );
-
 			// ignore system files
 			if( file_valid == 0xfe ) {
 				READ_POD( &Files[lcv]->refCtr, Files[lcv]->refCtr );
 				continue;
 			}
 
-			// shutdown old file
+			// Detach any live pre-restore file object from this slot before loading
+			// the saved entry. Closing/deleting the current object here can crash
+			// during same-session restore for active protected-mode titles.
 			if( Files[lcv] && Files[lcv]->GetName() != NULL ) {
 				// invalid file state - abort
 				if( strcmp( Files[lcv]->GetName(), "NUL" ) == 0 ) break;
@@ -2784,12 +2785,6 @@ void POD_Load_DOS_Files( std::istream& stream )
 				if( strcmp( Files[lcv]->GetName(), "PRN" ) == 0 ) break;
 				if( strcmp( Files[lcv]->GetName(), "AUX" ) == 0 ) break;
 				if( strcmp( Files[lcv]->GetName(), "EMMXXXX0" ) == 0 ) break;//raiden needs this
-
-
-				if( Files[lcv]->IsOpen() ) Files[lcv]->Close();
-				if (Files[lcv]->RemoveRef()<=0) {
-					delete Files[lcv];
-				}
 				Files[lcv]=nullptr;
 			}
 
@@ -2811,7 +2806,16 @@ void POD_Load_DOS_Files( std::istream& stream )
 
 
 			// NOTE: Must open regardless to get 'new' DOS_File class
-			Drives[file_drive]->FileOpen( &Files[lcv], file_name, file_flags );
+			if (file_drive >= DOS_DRIVES || Drives[file_drive] == nullptr) {
+				LOG_MSG("WARNING: Save-state restore skipped file handle %u for drive %u ('%s'): drive entry missing during DOS file restore",
+					(unsigned int)lcv,
+					(unsigned int)file_drive,
+					file_name);
+				Files[lcv] = nullptr;
+			}
+			else {
+				Drives[file_drive]->FileOpen( &Files[lcv], file_name, file_flags );
+			}
 
 			if( Files[lcv] ) {
 				Files[lcv]->LoadState(stream, false);
