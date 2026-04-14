@@ -5,9 +5,11 @@ AC_SUBST([COPYRIGHT_YEAR])
 AC_PREREQ(2.60)
 AC_CONFIG_SRCDIR(README.md)
 
-dnl Support AC_HELP_STRING for compatibility
+dnl Support for compatibility
 m4_ifndef([AS_HELP_STRING],
   [m4_define([AS_HELP_STRING], [AC_HELP_STRING($@)])])
+m4_ifndef([AC_CONFIG_HEADERS],
+  [m4_define([AC_CONFIG_HEADERS], [AC_CONFIG_HEADER($@)])])
 
 dnl Utility function ============================
 
@@ -156,7 +158,7 @@ fi
 
 dnl Setup for automake
 AM_INIT_AUTOMAKE([foreign subdir-objects])
-AC_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 AH_BOTTOM([/*
   Define HAS_CDIRECTLPT as 1 if C_DIRECTLPT is defined (as 1) *and* parallel
   pass-through is available on the current platform. It is only available on
@@ -849,7 +851,13 @@ esac
 dnl TODO: Need GCC to know this code is using C++ lambda functions
 
 dnl LIBRARY TEST: ALSA
-AM_PATH_ALSA(0.9.0, AC_DEFINE(HAVE_ALSA,1,[Define to 1 to use ALSA for MIDI]) , : )
+#AM_PATH_ALSA(0.9.0, AC_DEFINE(HAVE_ALSA,1,[Define to 1 to use ALSA for MIDI]) , : )
+PKG_PROG_PKG_CONFIG
+
+PKG_CHECK_MODULES([ALSA], [alsa >= 0.9.0],
+  [AC_DEFINE([HAVE_ALSA], [1], [Define to 1 to use ALSA for MIDI])],
+  []
+)
 
 dnl Some stuff for the icon.
 case "$host" in
