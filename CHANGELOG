@@ -1,5 +1,98 @@
 Next version
-  - 
+  - Added function to config to load MS-DOS device drivers. The command is
+    config -device <device driver path> -devparm <parameters>. For example,
+    to load OAKCDROM.SYS into memory, you could type:
+
+    config -device C:\DOS\OAKCDROM.SYS -devparm "/D:CD001"
+
+    which is equivalent to the DEVICE line in CONFIG.SYS:
+
+    DEVICE=C:\DOS\OAKCDROM.SYS /D:CD001
+
+    The goal is that DOSBox-X would fully support, through INT 21h and
+    other interfaces, real device drivers instead of hard coding specific
+    driver emulation. INT 21h would use the actual device chain instead
+    of a built-in list. Built-in device emulation could appear properly
+    in the device chain instead of fake entries.
+
+    There seems to be interest on the DOSBox-X discussion and issue trackers
+    of getting DOSBox-X to provide or emulate the MS-DOS/Windows 95 IFS
+    driver to get Windows 95 to boot from a disk image in the native DOSBox-X
+    environment, perhaps this would help enable that.
+
+    At this time (in development), only INIT is called. (joncampbell123)
+  - External DOS device driver read/write: Optimize I/O by using larger
+    read/write transfers (currently 16 based on how much memory is allocated
+    for device driver I/O request and data). Until this change, the code
+    used an extremely inefficient 1-byte read/write method to transfer
+    to or from the device driver. (joncampbell123)
+  - DOS execute bugfix: While ownership was properly listed in the MCB for
+    the PSP segment, the environment block associated with the program was
+    always listed in the MCB as belonging to the parent process. This has
+    been addressed (joncampbell123)
+  - Fix INT 21h AH=3Fh/40h READ/WRITE processing, when talking to an external
+    MS-DOS device driver, so that the bytes actually processed by the driver
+    are returned in AX to the DOS program, instead of giving the DOS program
+    the impression that all were processed when they may not have been. (joncampbell123)
+  - CD Audio: Fix track not advancing at end of playback (maron2000)
+  - Fix geometry detection of qcow2 images (maron2000)
+  - Fixed advanced scaler rendering artifacts when machine type is MDA,
+    Hercules, CGA, EGA, Tandy, or PCjr, or when SVGA 15/16bpp SVGA modes
+    are active. CGA/EGA with Advanced MAME 2x/3x and HQ2X scalers should
+    render correctly now. (joncampbell123)
+  - Added dosbox.conf [devices] section, which functions much like the
+    DEVICE= lines in CONFIG.SYS to load MS-DOS device drivers at startup.
+    Added support for RUN= lines to run commands like IMGMOUNT to help
+    set up drive mounts and CD-ROM devices, or any other diagnostic
+    purpose. While RUN= works just like the command shell, it is not
+    intended to be a general command shell for running DOS games or
+    applications that are unrelated to system startup. Added debugging
+    options like ECHO which echo the command about to be run, and
+    DEBUGBREAK which breaks into the debugger when starting the program
+    or device driver. (joncampbell123)
+  - Added code to device driver loading which will, where possible,
+    attempt to load the device driver as low as possible and pack it into
+    the DOS kernel below the start of the MCB chain to resemble how
+    device drivers are loaded in MS-DOS. (joncampbell123)
+  - Added debugger command "DOS DEVS" to list and enumerate the device
+    drivers in the DOS kernel. Added code to BOOT --boothax msdos to
+    track the location of the device driver list in the guest MS-DOS
+    kernel so "DOS DEVS" can work there as well. (joncampbell123)
+  - DOSBox-X shell will now free any memory it allocated and close files
+    that were opened on shutdown. This is important so that the CONFIG
+    shell (used for loading device drivers) does not leave behind
+    any memory it allocated when transferring control to the main
+    command shell. However, do NOT release memory and do NOT close files
+    on shell shutdown if the reason for the shutdown is the BOOT command.
+    By the time normal shutdown occurs, the BOOT command has already
+    overwritten low memory (and the MCB chain) with the guest OS's boot
+    code, therefore freeing shell memory in that cause would only cause
+    a complaint about a corrupted MCB chain and emulator E_Exit() shutdown.
+    (joncampbell123)
+  - Fixed VHD, qcow2 image geometry calculation (maron2000)
+  - Fix CONFIG vs DOS shell to ensure the welcome screen is printed first
+    before anything else on the console during startup. This is to help
+    keep any output from programs and device drivers on screen where
+    the user can see it (joncampbell123)
+  - Add basic support for MS-DOS block device drivers. If a block device
+    driver succeeds, set up a disk image object and attach it to the
+    FAT filesystem driver, and then a drive letter. At this time, this
+    is enough for Microsoft RAMDRIVE.SYS to load and appear as a working
+    drive letter in DOSBox-X (joncampbell123)
+  - CD-ROM device emulation is no longer strictly tied to MSCDEX emulation.
+    While devices are still initialized through MSCDEX emulation, it is now
+    possible for other parts of emulation to own a reference to it without
+    MSCDEX. This means it is now possible for CD-ROM emulation to work
+    after booting a guest OS without reaching back through MSCDEX emulation,
+    and MSCDEX emulation can now unload properly with the rest of the DOS
+    kernel. (joncampbell123)
+  - Fix bug where El Torito no emulation boot failed to notify the DOS
+    kernel that the MCB chain is no longer valid, causing MCB chain corruption
+    crashes. (joncampbell123)
+  - Added checks to sector I/O code to fix potential buffer overrun issues.
+    (orbisai0security)
+  - Fixed logging of 'Packed file is corrupt' message detection (maron2000)
+  - Fixed upper 32-bit of LBA was always cleared (maron2000)
 
 2026.05.02
   - DOSBox-X will now check both the current directory and the .config
