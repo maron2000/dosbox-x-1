@@ -202,7 +202,12 @@
     <Optimization>MaxSpeed</Optimization>
     <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
     <OmitFramePointers>true</OmitFramePointers>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
   </ClCompile>
+
+  <Link>
+    <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+  </Link>
 </ItemDefinitionGroup>
 
 <ItemDefinitionGroup>
