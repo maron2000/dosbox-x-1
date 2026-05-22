@@ -1189,7 +1189,8 @@
   <Copy
     SourceFiles="$(SolutionDir)\..\contrib\windows\installer\$(InpOutDll)"
     DestinationFolder="$(OutputPath)"
-    Condition="Exists('$(SolutionDir)\..\contrib\windows\installer\$(InpOutDll)')"
+    Condition="'$(InpOutDll)'!=''
+             And Exists('$(SolutionDir)\..\contrib\windows\installer\$(InpOutDll)')"
   />
 
   <Copy
