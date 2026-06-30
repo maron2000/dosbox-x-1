@@ -50,6 +50,9 @@ jobs:
           ./build-debug --enable-avcodec
           strip -s $top/src/dosbox-x
           cp $top/src/dosbox-x $top/src/bin/dosbox-x-sdl1
+      - name: Force internal SDL2 build
+        run: |
+          sed -i '/which sdl2-config/c\    x=""' build-debug-sdl2
       - name: Build Linux SDL2
         run: |
           top=`pwd`
