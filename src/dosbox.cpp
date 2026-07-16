@@ -5419,7 +5419,7 @@ void DOSBOX_SetupConfigSections(void) {
     Pstring->Set_values(ps1opt);
     Pstring->SetBasic(true);
     Pstring = secprop->Add_string("numlock",Property::Changeable::OnlyAtStart,"");
-	Pstring->Set_help("Sets the initial state of the NumLock key.");
+	Pstring->Set_help("Sets the initial state of the NumLock key. May not work on macOS or Linux. (Wayland not supported)");
     Pstring->Set_values(numopt);
     Pstring->SetBasic(true);
     Pstring = secprop->Add_string("shell",Property::Changeable::OnlyAtStart,"");

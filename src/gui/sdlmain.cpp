@@ -93,6 +93,13 @@ bool kana_input = false; // true if a half-width kana was typed
 #define IS_OLDMACOS 1 /* FIX_ME: Tested on El Capitan (10.11). If this macro is required for Sierra (10.12), change to 101300 */
 #endif
 
+#if defined(MACOSX) || defined(__APPLE__)
+#include <ApplicationServices/ApplicationServices.h>
+#ifndef kVK_ANSI_KeypadClear
+#define kVK_ANSI_KeypadClear 0x47
+#endif
+#endif
+
 #ifndef LINUX
 char* convert_escape_newlines(const char* aMessage);
 char* revert_escape_newlines(const char* aMessage);
@@ -182,6 +189,17 @@ char* revert_escape_newlines(const char* aMessage);
 #include <unistd.h>
 #endif
 #include <limits.h>
+
+#if defined(LINUX) && defined(SDL_VIDEO_DRIVER_X11) && defined(C_X11_XKB)
+#include <X11/Xlib.h>
+#include <X11/XKBlib.h>
+
+#if C_SDL2
+#include <SDL_syswm.h>
+#else
+#include <SDL/SDL_syswm.h>
+#endif
+#endif
 
 #include <output/output_direct3d11.h>
 #include <output/output_direct3d.h>
@@ -7276,7 +7294,69 @@ void SetNumLock(void) {
 
     // Simulate a key release
     keybd_event(VK_NUMLOCK,0x45,KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,0);
+    return;
 #endif
+#if defined(MACOSX) || defined(__APPLE__)
+    if(control->opt_disable_numlock_check)
+        return;
+
+    LOG_MSG("WARNING: numlock=on control may not work on macOS. If necessary, enable Num Lock manually.");
+    CGEventRef eventDown =
+        CGEventCreateKeyboardEvent(nullptr, kVK_ANSI_KeypadClear, true);
+    CGEventRef eventUp =
+        CGEventCreateKeyboardEvent(nullptr, kVK_ANSI_KeypadClear, false);
+
+    if(eventDown) {
+        CGEventPost(kCGHIDEventTap, eventDown);
+        CFRelease(eventDown);
+    }
+
+    if(eventUp) {
+        CGEventPost(kCGHIDEventTap, eventUp);
+        CFRelease(eventUp);
+    }
+    return;
+#endif
+#if defined(LINUX)
+
+    if(control->opt_disable_numlock_check)
+        return;
+
+#if defined(SDL_VIDEO_DRIVER_X11) && defined(C_X11_XKB)
+
+#if C_SDL2
+    const char* driver = SDL_GetCurrentVideoDriver();
+    if(driver) {
+        if(strcmp(driver, "wayland") == 0) {
+            LOG_MSG("WARNING: Wayland does not allow applications to change the Num Lock state. Please enable Num Lock manually.");
+            return;
+        }
+        if(strcmp(driver, "x11") != 0) {
+            LOG_MSG("WARNING: numlock=on control is unavailable. Please enable Num Lock manually.");
+            return;
+        }
+    }
+#endif
+
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+
+    if(SDL_GetWMInfo(&info)) {
+        Display* dpy = info.info.x11.display;
+
+        XkbStateRec state;
+        if(XkbGetState(dpy, XkbUseCoreKbd, &state) == Success) {
+            if(!(state.locked_mods & Mod2Mask)) {
+                XkbLockModifiers(dpy, XkbUseCoreKbd,
+                    Mod2Mask, Mod2Mask);
+                XFlush(dpy);
+            }
+        }
+        return;
+    }
+#endif
+#endif
+    LOG_MSG("WARNING: numlock=on control is unavailable. Please enable Num Lock manually.");
 }
 
 void CheckNumLockState(void) {
