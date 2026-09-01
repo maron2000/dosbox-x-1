@@ -135,6 +135,8 @@ jobs:
           mkdir -p "$top/debian"
           cp "$pkg/DEBIAN/control" "$top/debian/"
 
+          echo Check for dependency
+          dpkg-shlibdeps -O "$pkg/usr/bin/dosbox-x-sdl1" "$pkg/usr/bin/dosbox-x-sdl2"
           deps=$(dpkg-shlibdeps -O "$pkg/usr/bin/dosbox-x-sdl1" "$pkg/usr/bin/dosbox-x-sdl2" | sed -n 's/^shlibs:Depends=//p')
 
           sed -i "s|^Depends:.*|Depends: $deps|" "$pkg/DEBIAN/control"
