@@ -119,40 +119,60 @@ jobs:
           cp "$top/contrib/glshaders/"* "$pkg/usr/share/dosbox-x/glshaders/"
           cp "$top/contrib/translations/"*/*.lng "$pkg/usr/share/dosbox-x/languages/"
 
-          # Needs $top/debian/control file to run dpkg-shlibdeps
           cat > "$pkg/DEBIAN/control" <<EOF
           Package: dosbox-x
           Version: ${{ env.timestamp }}
           Section: otherosfs
           Priority: optional
           Architecture: amd64
+          Depends: \${shlibs:Depends}
           Maintainer: DOSBox-X Team
-          Depends:
           Description: DOS emulator with extended features
            DOSBox-X is a DOS emulator with extended features.
           EOF
 
+          # Needs $top/debian/control file to run dpkg-shlibdeps
           mkdir -p "$top/debian"
-          cp "$pkg/DEBIAN/control" "$top/debian/"
+          cat > "$top/debian/control" <<EOF
+          Source: dosbox-x
+          Section: otherosfs
+          Priority: optional
+          Maintainer: DOSBox-X Team
+          Build-Depends: debhelper
 
-          echo Check for dependency
-          dpkg-shlibdeps -O "$pkg/usr/bin/dosbox-x-sdl1" "$pkg/usr/bin/dosbox-x-sdl2"
-          deps=$(dpkg-shlibdeps -O "$pkg/usr/bin/dosbox-x-sdl1" "$pkg/usr/bin/dosbox-x-sdl2" | sed -n 's/^shlibs:Depends=//p')
+          Package: dosbox-x
+          Architecture: amd64
+          Depends: \${shlibs:Depends}
+          Description: DOS emulator with extended features
+           DOSBox-X is a DOS emulator with extended features.
+          EOF
 
+          dpkg-shlibdeps \
+            -T"$top/debian/substvars" \
+            "$pkg/usr/bin/dosbox-x-sdl1" \
+            "$pkg/usr/bin/dosbox-x-sdl2"
+
+          deps=$(sed -n 's/^shlibs:Depends=//p' "$top/debian/substvars")
           sed -i "s|^Depends:.*|Depends: $deps|" "$pkg/DEBIAN/control"
+
           rm -rf "$top/debian"
 
           cat "$pkg/DEBIAN/control"
 
           deb="$top/dosbox-x_${{ env.timestamp }}nightly_amd64.deb"
+          rm -f "$deb"
+
           ls -la "$pkg/usr/bin/"
+
           dpkg-deb --build "$pkg" "$deb"
+
           dpkg-deb --info "$deb"
           dpkg-deb --contents "$deb"
           dpkg-deb --field "$deb" Package Version Architecture Depends
-          
-          # Test install
-          sudo apt-get install -y "$deb"
+
+          echo Test installation
+          sudo apt install "$deb"
+
 
       - name: Upload Ubuntu package
         uses: actions/upload-artifact@v7.0.1
@@ -192,6 +212,16 @@ jobs:
           echo "#define GIT_COMMIT_HASH \"${shortsha}\""  >> include/build_timestamp.h
           echo "#define COPYRIGHT_END_YEAR \"${copyrightyear}\"" >> include/build_timestamp.h
           cat include/build_timestamp.h
+      - name: Detect OSFREE build
+        id: osfree
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main-osfree" ]] || \
+             grep -q '^#define C_OSFREE 1' vs/config_package.h 2>/dev/null; then
+            echo "osfree=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "osfree=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build Linux SDL1
         run: |
           top=`pwd`
@@ -205,6 +235,7 @@ jobs:
           strip -s $top/src/dosbox-x
           cp $top/src/dosbox-x $top/src/bin/dosbox-x-sdl2
       - name: Unit testing
+        if: steps.osfree.outputs.osfree != 'true'
         run: |
           top=`pwd`
           chmod +x $top/src/bin/dosbox-x-sdl1 $top/src/bin/dosbox-x-sdl2
@@ -256,38 +287,59 @@ jobs:
           cp "$top/contrib/glshaders/"* "$pkg/usr/share/dosbox-x/glshaders/"
           cp "$top/contrib/translations/"*/*.lng "$pkg/usr/share/dosbox-x/languages/"
           
-          # Needs $top/debian/control file to run dpkg-shlibdeps
           cat > "$pkg/DEBIAN/control" <<EOF
           Package: dosbox-x
           Version: ${{ env.timestamp }}
           Section: otherosfs
           Priority: optional
           Architecture: amd64
+          Depends: \${shlibs:Depends}
           Maintainer: DOSBox-X Team
-          Depends:
           Description: DOS emulator with extended features
            DOSBox-X is a DOS emulator with extended features.
           EOF
 
+          # Needs $top/debian/control file to run dpkg-shlibdeps
           mkdir -p "$top/debian"
-          cp "$pkg/DEBIAN/control" "$top/debian/"
+          cat > "$top/debian/control" <<EOF
+          Source: dosbox-x
+          Section: otherosfs
+          Priority: optional
+          Maintainer: DOSBox-X Team
+          Build-Depends: debhelper
 
-          deps=$(dpkg-shlibdeps -O "$pkg/usr/bin/dosbox-x-sdl1" "$pkg/usr/bin/dosbox-x-sdl2" | sed -n 's/^shlibs:Depends=//p')
+          Package: dosbox-x
+          Architecture: amd64
+          Depends: \${shlibs:Depends}
+          Description: DOS emulator with extended features
+           DOSBox-X is a DOS emulator with extended features.
+          EOF
 
+          dpkg-shlibdeps \
+            -T"$top/debian/substvars" \
+            "$pkg/usr/bin/dosbox-x-sdl1" \
+            "$pkg/usr/bin/dosbox-x-sdl2"
+
+          deps=$(sed -n 's/^shlibs:Depends=//p' "$top/debian/substvars")
           sed -i "s|^Depends:.*|Depends: $deps|" "$pkg/DEBIAN/control"
+
           rm -rf "$top/debian"
 
           cat "$pkg/DEBIAN/control"
 
           deb="$top/dosbox-x_${{ env.timestamp }}nightly_amd64.deb"
+          rm -f "$deb"
+
           ls -la "$pkg/usr/bin/"
+
           dpkg-deb --build "$pkg" "$deb"
+
           dpkg-deb --info "$deb"
           dpkg-deb --contents "$deb"
           dpkg-deb --field "$deb" Package Version Architecture Depends
-          
-          # Test install
-          sudo apt-get install -y "$deb"
+
+          echo Test installation
+          sudo apt install "$deb"
 
       - name: Upload Ubuntu package
         uses: actions/upload-artifact@v7.0.1
