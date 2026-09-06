@@ -228,7 +228,7 @@ void DOS_SetDefaultDrive(uint8_t drive) {
 }
 
 bool DOS_MakeName(char const * const name,char * const fullname,uint8_t * drive) {
-	if(!name || *name == 0 || *name == ' ' || *name == '\n' || *name == ':') {
+    if(!name || *name == 0 || *name == ' ' || *name == '\n' || *name == ':') {
 		/* Both \0 and space are separators and
 		 * empty filenames report file not found */
 		DOS_SetError(DOSERR_FILE_NOT_FOUND);
@@ -298,7 +298,7 @@ bool DOS_MakeName(char const * const name,char * const fullname,uint8_t * drive)
 			else if (c==' ') continue; /* should be separator */
 		}
 		upname[w++]=(char)c;
-        if (((IS_PC98_ARCH && shiftjis_lead_byte(c)) || (isDBCSCP() && isKanji1(c))) && r<DOS_PATHLENGTH) {
+        if(((IS_PC98_ARCH && shiftjis_lead_byte(c)) || (isDBCSCP() && isKanji1(c))) && r < DOS_PATHLENGTH && name_int[r] != 0) {
             /* The trailing byte is NOT ASCII and SHOULD NOT be converted to uppercase like ASCII */
             upname[w++]=name_int[r++];
         }
