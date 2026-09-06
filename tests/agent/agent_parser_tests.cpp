@@ -1,3 +1,4 @@
+#if defined(C_DEBUG) && defined(C_DOSBOX_AGENT)
 #include "agent/debugger_output_parser.h"
 
 #include <gtest/gtest.h>
@@ -39,3 +40,4 @@ TEST(DebuggerOutputParser, RejectsAbnormalSpacingWithoutPartialResult)
 }
 
 } // namespace
+#endif // C_DEBUG && C_DOSBOX_AGENT
