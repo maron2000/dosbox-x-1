@@ -1431,6 +1431,16 @@ if test x$enable_ffmpeg = xyes; then
     fi
 fi
 
+dnl FEATURE: RPC debugger agent output support
+AH_TEMPLATE(C_DOSBOX_AGENT,[Define to 1 to use RPC debugger agent support])
+AC_ARG_ENABLE(dosbox_agent,AC_HELP_STRING([--enable-dosbox_agent],[Enable RPC debugger agent support]),enable_dosbox_agent=$enableval,enable_dosbox_agent=no)
+
+dnl FEATURE: RPC debugger agent output support
+if test x$enable_dosbox_agent = xyes; then
+    AC_DEFINE([C_DOSBOX_AGENT], [1])
+    AC_MSG_NOTICE([enabled RPC debugger agent output support])
+fi
+
 dnl FEATURE: Whether to use Direct3D 9 output
 AH_TEMPLATE(HAVE_D3D9_H,[Define to 1 to use Direct3D 9 display output support])
 AC_ARG_ENABLE(d3d9,AC_HELP_STRING([--enable-d3d9],[Enable Direct3D 9 support]),enable_d3d9=$enableval,enable_d3d9=no)

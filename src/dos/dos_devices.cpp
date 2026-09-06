@@ -125,10 +125,10 @@ bool DOS_ExtDevice::Read(uint8_t * data,uint16_t * size) {
 	unsigned int todo = *size;
 	unsigned int done = 0;
 	unsigned int rd;
-
+#if !defined(OSFREE)
 	if (extdev_read_limit && batch_size > extdev_read_limit)
 		batch_size = extdev_read_limit;
-
+#endif
 	const auto inproc = [bufptr, &todo, &done, &rd, &data, this](const unsigned int batch_size) {
 		rd = 0;
 
@@ -176,10 +176,10 @@ bool DOS_ExtDevice::Write(const uint8_t * data,uint16_t * size) {
 	unsigned int todo = *size;
 	unsigned int done = 0;
 	unsigned int wd;
-
+#if !defined(OSFREE)
 	if (extdev_write_limit && batch_size > extdev_write_limit)
 		batch_size = extdev_write_limit;
-
+#endif
 	const auto inproc = [bufptr, &todo, &done, &wd, &data, this](const unsigned int batch_size) {
 		wd = 0;
 
