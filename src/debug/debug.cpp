@@ -18,9 +18,6 @@
 
 
 #include "dosbox.h"
-#if defined(C_DOSBOX_AGENT)
-#include "agent/agent_bridge.h"
-#endif
 #if C_DEBUG
 
 #include "../../tests/tests.h"
@@ -37,7 +34,9 @@
 using namespace std;
 
 #include "debug.h"
+#if defined(C_DOSBOX_AGENT)
 #include "agent/agent_bridge.h"
+#endif
 #include "cross.h" //snprintf
 #include "fpu.h"
 #include "bios.h"
@@ -60,7 +59,7 @@ bool Clear_SYSENTER_Debug();
 bool Toggle_BreakSYSEnter();
 bool Toggle_BreakSYSExit();
 
-#if !defined(OSFREE)
+#if !defined(OSFREE) && defined(C_DOSBOX_AGENT)
 extern bool debugger_break_on_exec;
 extern unsigned int debugger_box_depth;
 #endif
@@ -1080,6 +1079,7 @@ static bool StepOver()
 	return false;
 }
 
+#if defined(C_DEBUG) && defined(C_DOSBOX_AGENT)
 void DrawRegistersUpdateOld(void);
 int32_t DEBUG_Run(int32_t amount,bool quickexit);
 bool ParseCommand(char* str);
@@ -1217,6 +1217,8 @@ bool DEBUG_AgentStopTrace(uint32_t* event_count);
 bool DEBUG_AgentTraceIsActive(void);
 void DEBUG_AgentCopyTraceEvents(std::vector<DEBUG_AgentTraceEvent>* events);
 #endif
+
+#endif // C_DEBUG && C_DOSBOX_AGENT
 
 bool DEBUG_ExitLoop(void)
 {
@@ -5127,7 +5129,9 @@ void dyn_core_dh_debug_flush (void);
 #endif
 
 Bitu DEBUG_Loop(void) {
+#if defined(C_DOSBOX_AGENT)
     dosbox_agent::AGENT_BridgePump();
+#endif
     if (debug_running) {
         Bitu now = SDL_GetTicks();
 
@@ -5983,7 +5987,7 @@ private:
 void DEBUG_CheckExecuteBreakpoint(uint16_t seg, uint32_t off)
 {
 #if !defined(OSFREE)
-# if C_DEBUG
+# if C_DEBUG && defined(C_DOSBOX_AGENT)
     if (debugger_break_on_exec) {
 		// The new entry breakpoint is created at the current CS:IP. The
 		// existing bulk activation intentionally skips that address, so arm
