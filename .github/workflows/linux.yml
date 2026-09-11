@@ -237,7 +237,7 @@ jobs:
       - name: Build Linux SDL2
         run: |
           top=`pwd`
-          CC=clang CXX=clang++ ./build-debug-sdl2 --enable-avcodec
+          CC=clang CXX=clang++ ./build-debug-sdl2 --enable-avcodec --enable-dosbox_agent
           strip -s $top/src/dosbox-x
           cp $top/src/dosbox-x $top/src/bin/dosbox-x-sdl2
       - name: Unit testing

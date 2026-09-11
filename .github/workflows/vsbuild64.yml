@@ -401,7 +401,7 @@ jobs:
       - name: Build Visual Studio Win64 SDL2
         shell: pwsh
         run: |
-          msbuild -m vs/dosbox-x.sln -t:dosbox-x:Rebuild -p:Configuration="Release SDL2" -p:Platform=x64 -p:PlatformToolset=v145
+          msbuild -m vs/dosbox-x.sln -t:dosbox-x:Rebuild -p:Configuration="Agent Debug SDL2" -p:Platform=x64 -p:PlatformToolset=v145 
           if (-not(Test-Path -Path bin\x64\"Release SDL2"\dosbox-x.exe -PathType Leaf)) {exit 1}
       - name: Package Visual Studio 2022 build
         shell: bash

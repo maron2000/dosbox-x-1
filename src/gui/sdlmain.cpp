@@ -32,10 +32,9 @@
 # endif
 #endif
 
-#if defined(C_DOSBOX_AGENT)
 #include "agent/agent_bridge.h"
 #include "agent/agent_server.h"
-#endif
+#include "agent/agent_protocol.h"
 
 #ifdef OS2
 # define INCL_DOS
@@ -7488,7 +7487,7 @@ bool DOSBOX_parse_argv() {
             fprintf(stderr,"  -log-fileio                             Log file I/O through INT 21h (debug level)\n");
             fprintf(stderr,"  -nolog                                  Do not log anything to log file\n");
             fprintf(stderr,"  -tests                                  Run unit tests to test the DOSBox-X code\n");
-#if defined(C_DOSBOX_AGENT)
+#if defined(C_DOSBOX_AGENT) && (C_DOSBOX_AGENT != 0)
             fprintf(stderr,"  -agent-config <path>                    Load agent configuration from an explicit file\n");
             fprintf(stderr,"  -agent-self-test                        Verify agent startup and emulation queue behavior\n");
 #endif
@@ -7517,7 +7516,7 @@ bool DOSBOX_parse_argv() {
         else if (optname == "log-con") {
             control->opt_log_con = true;
         }
-#if defined(C_DOSBOX_AGENT)
+#if defined(C_DOSBOX_AGENT) && (C_DOSBOX_AGENT != 0)
         else if (optname == "agent-config") {
             if (!control->cmdline->NextOptArgv(control->opt_agent_config)) return false;
         }
@@ -8445,7 +8444,7 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
     CommandLine com_line(argc,argv);
     Config myconf(&com_line);
     bool saved_opt_test;
-#if defined(C_DOSBOX_AGENT)
+#if defined(C_DOSBOX_AGENT) && (C_DOSBOX_AGENT != 0)
     dosbox_agent::AgentServer agent_server;
 #endif
 
@@ -8479,7 +8478,7 @@ int main(int argc, char* argv[]) SDL_MAIN_NOEXCEPT {
     /*    If --early-debug was given this opens up logging to STDERR until Log::Init() */
     LOG::EarlyInit();
 
-#if defined(C_DOSBOX_AGENT)
+#if defined(C_DOSBOX_AGENT) && (C_DOSBOX_AGENT != 0)
     if (control->opt_agent_self_test && control->opt_agent_config.empty()) {
         LOG_MSG("Agent self-test requires --agent-config <path>");
         return 1;
@@ -10716,7 +10715,7 @@ fresh_boot:
 	}
 #endif
 
-#if defined(C_DOSBOX_AGENT)
+#if defined(C_DOSBOX_AGENT) && (C_DOSBOX_AGENT != 0)
         agent_server.Stop();
         dosbox_agent::AGENT_BridgeShutdown();
 #endif
