@@ -1725,6 +1725,16 @@
     <ClCompile Include="..\src\misc\ethernet_ethnet.cpp">
       <Filter>Sources\misc</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\agent\bridge\agent_bridge.cpp" />
+    <ClCompile Include="..\src\agent\debugger\debugger_adapter.cpp" />
+    <ClCompile Include="..\src\agent\parser\debugger_output_parser.cpp" />
+    <ClCompile Include="..\src\agent\protocol\agent_protocol.cpp" />
+    <ClCompile Include="..\src\agent\server\agent_server.cpp" />
+    <ClCompile Include="..\src\agent\trace\trace_store.cpp" />
+    <ClCompile Include="..\src\agent\transport\local_transport.cpp" />
+    <ClCompile Include="..\src\output\output_opengl_sdl2.cpp">
+      <Filter>Sources\output</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\aviwriter\avi.h">
@@ -2720,6 +2730,13 @@
     <ClInclude Include="..\src\misc\ethernet_ethnet.h">
       <Filter>Sources\misc</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\agent\agent_bridge.h" />
+    <ClInclude Include="..\include\agent\agent_protocol.h" />
+    <ClInclude Include="..\include\agent\agent_server.h" />
+    <ClInclude Include="..\include\agent\debugger_adapter.h" />
+    <ClInclude Include="..\include\agent\debugger_output_parser.h" />
+    <ClInclude Include="..\include\agent\trace_store.h" />
+    <ClInclude Include="..\src\agent\transport\rpc_transport.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\winres.rc">

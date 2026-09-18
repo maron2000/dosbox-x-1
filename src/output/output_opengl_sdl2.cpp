@@ -9,7 +9,7 @@
 #include <math.h>
 extern "C" {
 #include "ppscale.h"
-#include "ppscale.c"
+//#include "ppscale.c"
 }
 #include "control.h"
 #include "dosbox.h"
@@ -24,6 +24,7 @@ extern "C" {
 
 #include "sdlmain.h"
 #include "render.h"
+//#include "SDL.h"
 
 using namespace std;
 
@@ -35,7 +36,7 @@ extern Bitu currentWindowHeight;
 
 bool setSizeButNotResize();
 
-#if C_OPENGL && !defined(C_SDL2)
+#if C_OPENGL && defined(C_SDL2)
 PFNGLGENBUFFERSARBPROC glGenBuffersARB = NULL;
 PFNGLBINDBUFFERARBPROC glBindBufferARB = NULL;
 PFNGLDELETEBUFFERSARBPROC glDeleteBuffersARB = NULL;
@@ -167,31 +168,19 @@ static SDL_Surface* SetupSurfaceScaledOpenGL(uint32_t sdl_flags, uint32_t bpp)
     uint16_t windowHeight;
 
 retry:
-#if defined(C_SDL2)
-    if (sdl.desktop.want_type == SCREEN_OPENGL)
+    if(sdl.desktop.want_type == SCREEN_OPENGL)
         sdl_flags |= (unsigned int)SDL_WINDOW_OPENGL;
-#else
-    if (sdl.desktop.want_type == SCREEN_OPENGL)
-        sdl_flags |= (unsigned int)SDL_OPENGL;
-#endif
 
-    if (sdl.desktop.fullscreen) 
+    if(sdl.desktop.fullscreen)
     {
         fixedWidth = sdl.desktop.full.fixed ? sdl.desktop.full.width : 0;
         fixedHeight = sdl.desktop.full.fixed ? sdl.desktop.full.height : 0;
-#if defined(C_SDL2)
-        sdl_flags |= (unsigned int)(SDL_WINDOW_FULLSCREEN);
-#else
-        sdl_flags |= (unsigned int)(SDL_FULLSCREEN | SDL_HWSURFACE);
-#endif
+        sdl_flags |= (unsigned int)SDL_WINDOW_FULLSCREEN;
     }
-    else 
+    else
     {
         fixedWidth = sdl.desktop.window.width;
         fixedHeight = sdl.desktop.window.height;
-#if !defined(C_SDL2)
-        sdl_flags |= (unsigned int)SDL_HWSURFACE;
-#endif
     }
 
     bool isModeswitchSet = vga.draw.modeswitch_set;
@@ -282,23 +271,43 @@ retry:
 #endif
 
 #if defined(C_SDL2)
-    (void)bpp; // unused param
-    sdl.surface = NULL;
-    sdl.window = GFX_SetSDLWindowMode(windowWidth, windowHeight, (sdl_flags & SDL_WINDOW_OPENGL) ? SCREEN_OPENGL : SCREEN_SURFACE);
-    if (sdl.window != NULL) sdl.surface = SDL_GetWindowSurface(sdl.window);
-#elif defined(SDL_DOSBOX_X_SPECIAL)
-    sdl.surface = SDL_SetVideoMode(windowWidth, windowHeight, (int)bpp, (unsigned int)sdl_flags | (unsigned int)(setSizeButNotResize() ? SDL_HAX_NORESIZEWINDOW : 0));
-#else
-    sdl.surface = SDL_SetVideoMode(windowWidth, windowHeight, (int)bpp, (unsigned int)sdl_flags);
+    if(sdl.window) {
+        if(sdl.desktop.fullscreen) {
+            SDL_DisplayMode displayMode;
+
+            SDL_GetWindowDisplayMode(sdl.window, &displayMode);
+
+            if(isModeswitchSet) {
+                displayMode.w = vga.draw.width;
+                displayMode.h = vga.draw.height;
+
+                SDL_SetWindowDisplayMode(sdl.window, &displayMode);
+                SDL_SetWindowFullscreen(sdl.window, SDL_WINDOW_FULLSCREEN);
+            }
+            else if(sdl.desktop.full.display_res) {
+                SDL_SetWindowFullscreen(sdl.window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+            }
+            else {
+                displayMode.w = windowWidth;
+                displayMode.h = windowHeight;
+
+                SDL_SetWindowDisplayMode(sdl.window, &displayMode);
+                SDL_SetWindowFullscreen(sdl.window, SDL_WINDOW_FULLSCREEN);
+            }
+        }
+        else {
+            SDL_SetWindowFullscreen(sdl.window, 0);
+            SDL_SetWindowSize(sdl.window, windowWidth, windowHeight);
+        }
+
+        sdl.surface = SDL_GetWindowSurface(sdl.window);
+    }
 #endif
+
     if (sdl.surface == NULL && sdl.desktop.fullscreen) {
         LOG_MSG("Fullscreen not supported: %s", SDL_GetError());
         sdl.desktop.fullscreen = false;
-#if defined(C_SDL2)
         sdl_flags &= ~SDL_WINDOW_FULLSCREEN;
-#else
-        sdl_flags &= ~SDL_FULLSCREEN;
-#endif
         GFX_CaptureMouse();
         goto retry;
     }
@@ -339,94 +348,93 @@ void OUTPUT_OPENGL_Select( GLKind kind )
 {
     sdl.desktop.want_type = SCREEN_OPENGL;
     render.aspectOffload = true;
-
-#if defined(WIN32) && !defined(C_SDL2)
-    SDL1_hax_inhibit_WM_PAINT = 0;
-#endif
+    //SDL1_hax_inhibit_WM_PAINT = 0;
 
     sdl_opengl.use_shader = false;
     initgl=0;
-#if defined(C_SDL2)
-#if defined(MACOSX)
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "opengl");// setting this to "1" caused crashes on macOS
-#else
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "1"); // setting this to "opengl" caused crashes in certain situations (#3661). can still be overridden via environment variable
-#endif
 
-    void GFX_SetResizeable(bool enable);
-    GFX_SetResizeable(true);
-    sdl.window = GFX_SetSDLWindowMode(640,400, SCREEN_OPENGL);
-    if (sdl.window) {
-        if(sdl_opengl.context) {
-            SDL_GL_DeleteContext(sdl_opengl.context);
-            sdl_opengl.context = nullptr;
-        }
-        sdl_opengl.context = SDL_GL_CreateContext(sdl.window);
-        sdl.surface = SDL_GetWindowSurface(sdl.window);
-
-        LOG_MSG( "OpenGL Version : %s", glGetString( GL_VERSION ));
-    }
-    if (!sdl.window || !sdl_opengl.context || sdl.surface == NULL) {
-#else
-    sdl.surface = SDL_SetVideoMode(640,400,0,SDL_OPENGL);
-    if (sdl.surface == NULL) {
-#endif
+    sdl.window = GFX_SetSDLWindowMode(640, 400, SCREEN_OPENGL);
+    if(sdl.window == NULL) {
         LOG_MSG("Could not initialize OpenGL, switching back to surface");
         sdl.desktop.want_type = SCREEN_SURFACE;
-    } else if (initgl!=2) {
-        initgl = 1;
-        sdl_opengl.kind = kind;
-        sdl.desktop.isperfect = kind == GLPerfect;
-        sdl_opengl.program_object = 0;
-        glAttachShader = (PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
-        glCompileShader = (PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
-        glCreateProgram = (PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
-        glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
-        glDeleteProgram = (PFNGLDELETEPROGRAMPROC)SDL_GL_GetProcAddress("glDeleteProgram");
-        glDeleteShader = (PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
-        glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
-        glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress("glGetAttribLocation");
-        glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
-        glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
-        glGetShaderiv = (PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
-        glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress("glGetShaderInfoLog");
-        glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress("glGetUniformLocation");
-        glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
-        glShaderSource = (PFNGLSHADERSOURCEPROC_NP)SDL_GL_GetProcAddress("glShaderSource");
-        glUniform2f = (PFNGLUNIFORM2FPROC)SDL_GL_GetProcAddress("glUniform2f");
-        glUniform1i = (PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
-        glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
-        glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribPointer");
-        sdl_opengl.use_shader = (glAttachShader && glCompileShader && glCreateProgram && glDeleteProgram && glDeleteShader && \
-            glEnableVertexAttribArray && glGetAttribLocation && glGetProgramiv && glGetProgramInfoLog && \
-            glGetShaderiv && glGetShaderInfoLog && glGetUniformLocation && glLinkProgram && glShaderSource && \
-            glUniform2f && glUniform1i && glUseProgram && glVertexAttribPointer);
-        if (sdl_opengl.use_shader) initgl = 2;
-        sdl_opengl.buffer=0;
-        sdl_opengl.framebuf = nullptr;
-        sdl_opengl.texture=0;
-        sdl_opengl.displaylist=0;
-        glGetIntegerv (GL_MAX_TEXTURE_SIZE, &sdl_opengl.max_texsize);
-        glGenBuffersARB = (PFNGLGENBUFFERSARBPROC)SDL_GL_GetProcAddress("glGenBuffersARB");
-        glBindBufferARB = (PFNGLBINDBUFFERARBPROC)SDL_GL_GetProcAddress("glBindBufferARB");
-        glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress("glDeleteBuffersARB");
-        glBufferDataARB = (PFNGLBUFFERDATAARBPROC)SDL_GL_GetProcAddress("glBufferDataARB");
-        glMapBufferARB = (PFNGLMAPBUFFERARBPROC)SDL_GL_GetProcAddress("glMapBufferARB");
-        glUnmapBufferARB = (PFNGLUNMAPBUFFERARBPROC)SDL_GL_GetProcAddress("glUnmapBufferARB");
-        const char * gl_ext = (const char *)glGetString (GL_EXTENSIONS);
-        if(gl_ext && *gl_ext){
-            sdl_opengl.packed_pixel=(strstr(gl_ext,"EXT_packed_pixels") != NULL);
-            sdl_opengl.paletted_texture=(strstr(gl_ext,"EXT_paletted_texture") != NULL);
-            //sdl_opengl.pixel_buffer_object=(strstr(gl_ext,"GL_ARB_pixel_buffer_object") != NULL ) && glGenBuffersARB && glBindBufferARB && glDeleteBuffersARB && glBufferDataARB && glMapBufferARB && glUnmapBufferARB;
-        } else {
-            sdl_opengl.packed_pixel = false;
-            sdl_opengl.paletted_texture = false;
-            //sdl_opengl.pixel_buffer_object = false;
+    }
+    else {
+        if(sdl_opengl.context)
+            SDL_GL_DeleteContext(sdl_opengl.context);
+
+        sdl_opengl.context = SDL_GL_CreateContext(sdl.window);
+        if(sdl_opengl.context == NULL) {
+            LOG_MSG("Could not initialize OpenGL, switching back to surface");
+            sdl.desktop.want_type = SCREEN_SURFACE;
         }
+        else {
+            sdl.surface = SDL_GetWindowSurface(sdl.window);
+            if(sdl.surface == NULL) {
+                LOG_MSG("Could not initialize OpenGL, switching back to surface");
+                SDL_GL_DeleteContext(sdl_opengl.context);
+                sdl_opengl.context = NULL;
+                sdl.desktop.want_type = SCREEN_SURFACE;
+            }
+            else if(initgl != 2) {
+                initgl = 1;
+                sdl_opengl.kind = kind;
+                sdl.desktop.isperfect = kind == GLPerfect;
+                sdl_opengl.program_object = 0;
+
+                glAttachShader = (PFNGLATTACHSHADERPROC)SDL_GL_GetProcAddress("glAttachShader");
+                glCompileShader = (PFNGLCOMPILESHADERPROC)SDL_GL_GetProcAddress("glCompileShader");
+                glCreateProgram = (PFNGLCREATEPROGRAMPROC)SDL_GL_GetProcAddress("glCreateProgram");
+                glCreateShader = (PFNGLCREATESHADERPROC)SDL_GL_GetProcAddress("glCreateShader");
+                glDeleteProgram = (PFNGLDELETEPROGRAMPROC)SDL_GL_GetProcAddress("glDeleteProgram");
+                glDeleteShader = (PFNGLDELETESHADERPROC)SDL_GL_GetProcAddress("glDeleteShader");
+                glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+                glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)SDL_GL_GetProcAddress("glGetAttribLocation");
+                glGetProgramiv = (PFNGLGETPROGRAMIVPROC)SDL_GL_GetProcAddress("glGetProgramiv");
+                glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)SDL_GL_GetProcAddress("glGetProgramInfoLog");
+                glGetShaderiv = (PFNGLGETSHADERIVPROC)SDL_GL_GetProcAddress("glGetShaderiv");
+                glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)SDL_GL_GetProcAddress("glGetShaderInfoLog");
+                glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)SDL_GL_GetProcAddress("glGetUniformLocation");
+                glLinkProgram = (PFNGLLINKPROGRAMPROC)SDL_GL_GetProcAddress("glLinkProgram");
+                glShaderSource = (PFNGLSHADERSOURCEPROC_NP)SDL_GL_GetProcAddress("glShaderSource");
+                glUniform2f = (PFNGLUNIFORM2FPROC)SDL_GL_GetProcAddress("glUniform2f");
+                glUniform1i = (PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
+                glUseProgram = (PFNGLUSEPROGRAMPROC)SDL_GL_GetProcAddress("glUseProgram");
+                glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)SDL_GL_GetProcAddress("glVertexAttribPointer");
+
+                sdl_opengl.use_shader = (glAttachShader && glCompileShader && glCreateProgram && glDeleteProgram && glDeleteShader && \
+                    glEnableVertexAttribArray && glGetAttribLocation && glGetProgramiv && glGetProgramInfoLog && \
+                    glGetShaderiv && glGetShaderInfoLog && glGetUniformLocation && glLinkProgram && glShaderSource && \
+                    glUniform2f && glUniform1i && glUseProgram && glVertexAttribPointer);
+
+                if(sdl_opengl.use_shader) initgl = 2;
+                sdl_opengl.buffer = 0;
+                sdl_opengl.framebuf = nullptr;
+                sdl_opengl.texture = 0;
+                sdl_opengl.displaylist = 0;
+                glGetIntegerv(GL_MAX_TEXTURE_SIZE, &sdl_opengl.max_texsize);
+                glGenBuffersARB = (PFNGLGENBUFFERSARBPROC)SDL_GL_GetProcAddress("glGenBuffersARB");
+                glBindBufferARB = (PFNGLBINDBUFFERARBPROC)SDL_GL_GetProcAddress("glBindBufferARB");
+                glDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC)SDL_GL_GetProcAddress("glDeleteBuffersARB");
+                glBufferDataARB = (PFNGLBUFFERDATAARBPROC)SDL_GL_GetProcAddress("glBufferDataARB");
+                glMapBufferARB = (PFNGLMAPBUFFERARBPROC)SDL_GL_GetProcAddress("glMapBufferARB");
+                glUnmapBufferARB = (PFNGLUNMAPBUFFERARBPROC)SDL_GL_GetProcAddress("glUnmapBufferARB");
+                const char* gl_ext = (const char*)glGetString(GL_EXTENSIONS);
+                if(gl_ext && *gl_ext) {
+                    sdl_opengl.packed_pixel = (strstr(gl_ext, "EXT_packed_pixels") != NULL);
+                    sdl_opengl.paletted_texture = (strstr(gl_ext, "EXT_paletted_texture") != NULL);
+                    //sdl_opengl.pixel_buffer_object=(strstr(gl_ext,"GL_ARB_pixel_buffer_object") != NULL ) && glGenBuffersARB && glBindBufferARB && glDeleteBuffersARB && glBufferDataARB && glMapBufferARB && glUnmapBufferARB;
+                }
+                else {
+                    sdl_opengl.packed_pixel = false;
+                    sdl_opengl.paletted_texture = false;
+                    //sdl_opengl.pixel_buffer_object = false;
+                }
 #ifdef DB_DISABLE_DBO
-        sdl_opengl.pixel_buffer_object = false;
+                sdl_opengl.pixel_buffer_object = false;
 #endif
-        //LOG_MSG("OpenGL extension: pixel_buffer_object %d",sdl_opengl.pixel_buffer_object);
+                //LOG_MSG("OpenGL extension: pixel_buffer_object %d",sdl_opengl.pixel_buffer_object);
+            }
+        }
 	} /* OPENGL is requested end */
     ApplyPreventCap();
 }
@@ -617,19 +625,13 @@ Bitu OUTPUT_OPENGL_SetSize()
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     Section_prop* sec = static_cast<Section_prop*>(control->GetSection("vsync"));
     if (sec) {
-#if defined(C_SDL2)
-        SDL_GL_SetSwapInterval((!strcmp(sec->Get_string("vsyncmode"), "host")) ? 1 : 0);
-#elif SDL_VERSION_ATLEAST(1, 2, 11)
-        SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, (!strcmp(sec->Get_string("vsyncmode"), "host")) ? 1 : 0);
-#endif
+        SDL_GL_SetSwapInterval(
+            (!strcmp(sec->Get_string("vsyncmode"), "host")) ? 1 : 0);
     }
 
     // try 32 bits first then 16
-#if defined(C_SDL2)
     if (SetupSurfaceScaledOpenGL(SDL_WINDOW_RESIZABLE,32)==NULL) SetupSurfaceScaledOpenGL(SDL_WINDOW_RESIZABLE,16);
-#else
-    if (SetupSurfaceScaledOpenGL(SDL_RESIZABLE,32)==NULL) SetupSurfaceScaledOpenGL(SDL_RESIZABLE,16);
-#endif
+
     if (!sdl.surface || sdl.surface->format->BitsPerPixel < 15)
     {
         LOG_MSG("SDL:OPENGL:Can't open drawing surface, are you running in 16bpp(or higher) mode?");
