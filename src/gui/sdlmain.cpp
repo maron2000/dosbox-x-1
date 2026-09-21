@@ -1816,16 +1816,20 @@ SDL_Window* GFX_SetSDLWindowMode(uint16_t width, uint16_t height, SCREEN_TYPES s
     if (sdl.window) {
         SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
 
-        if (!sdl.update_window
-                && (GFX_IsFullscreen() ||
-                !(SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_FULLSCREEN))
-                && currWidth == width
-                && currHeight == height) {
-            sdl.update_display_contents = ((width == currWidth) && (height == currHeight));
+        const bool windowFullscreen =
+            (SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_FULLSCREEN) != 0;
+
+        if(!sdl.update_window &&
+            GFX_IsFullscreen() == windowFullscreen) {
+
+            sdl.update_display_contents = ((width == currWidth) &&
+                (height == currHeight));
 
             currentWindowWidth = currWidth;
             currentWindowHeight = currHeight;
-            //LOG_MSG("currwidth=%d, currheight=%d", currWidth, currHeight);
+            sdl.clip.w = currWidth;
+            sdl.clip.h = currHeight;
+
             return sdl.window;
         }
     }

@@ -165,6 +165,7 @@ static SDL_Surface* SetupSurfaceScaledOpenGL(uint32_t sdl_flags, uint32_t bpp)
     uint16_t fixedHeight;
     uint16_t windowWidth;
     uint16_t windowHeight;
+    static bool was_fullscreen = false;
 
 retry:
 #if defined(C_SDL2)
@@ -179,16 +180,26 @@ retry:
     {
         fixedWidth = sdl.desktop.full.fixed ? sdl.desktop.full.width : 0;
         fixedHeight = sdl.desktop.full.fixed ? sdl.desktop.full.height : 0;
+        was_fullscreen = true;
 #if defined(C_SDL2)
         sdl_flags |= (unsigned int)(SDL_WINDOW_FULLSCREEN);
 #else
         sdl_flags |= (unsigned int)(SDL_FULLSCREEN | SDL_HWSURFACE);
 #endif
     }
-    else 
+    else
     {
-        fixedWidth = CurMode->swidth;
-        fixedHeight = CurMode->sheight;
+        if(was_fullscreen) {
+            fixedWidth = CurMode->swidth;
+            fixedHeight = CurMode->sheight;
+            was_fullscreen = false;
+        }
+        else {
+            fixedWidth = sdl.desktop.window.width ? sdl.desktop.window.width : CurMode->swidth;
+            fixedHeight = sdl.desktop.window.height ? sdl.desktop.window.height : CurMode->sheight;
+            sdl.clip.w = fixedWidth;
+            sdl.clip.h = fixedHeight;
+        }
 #if !defined(C_SDL2)
         sdl_flags |= (unsigned int)SDL_HWSURFACE;
 #endif
@@ -792,6 +803,11 @@ Bitu OUTPUT_OPENGL_SetSize()
         SDLDrawGenFontTextureInit = 0;
     }
 #endif
+    LOG_MSG("OpenGL resize: surface=%ux%u clip=%ux%u",
+        (unsigned int)sdl.surface->w,
+        (unsigned int)sdl.surface->h,
+        (unsigned int)sdl.clip.w,
+        (unsigned int)sdl.clip.h);
 
     if (sdl_opengl.use_shader)
         glViewport((sdl.surface->w-sdl.clip.w)/2,(sdl.surface->h-sdl.clip.h)/2,sdl.clip.w,sdl.clip.h);
