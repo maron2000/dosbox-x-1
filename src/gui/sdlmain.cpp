@@ -1814,14 +1814,18 @@ SDL_Window* GFX_SetSDLWindowMode(uint16_t width, uint16_t height, SCREEN_TYPES s
     sdl.window_desired_height = height;
     int currWidth, currHeight;
     if (sdl.window) {
-        //SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
-        if (!sdl.update_window) {
-            SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
+        SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
+
+        if (!sdl.update_window
+                && (GFX_IsFullscreen() ||
+                !(SDL_GetWindowFlags(sdl.window) & SDL_WINDOW_FULLSCREEN))
+                && currWidth == width
+                && currHeight == height) {
             sdl.update_display_contents = ((width == currWidth) && (height == currHeight));
 
             currentWindowWidth = currWidth;
             currentWindowHeight = currHeight;
-
+            //LOG_MSG("currwidth=%d, currheight=%d", currWidth, currHeight);
             return sdl.window;
         }
     }

@@ -187,8 +187,8 @@ retry:
     }
     else 
     {
-        fixedWidth = sdl.desktop.window.width;
-        fixedHeight = sdl.desktop.window.height;
+        fixedWidth = CurMode->swidth;
+        fixedHeight = CurMode->sheight;
 #if !defined(C_SDL2)
         sdl_flags |= (unsigned int)SDL_HWSURFACE;
 #endif
