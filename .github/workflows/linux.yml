@@ -630,3 +630,23 @@ jobs:
         with:
           name: dosbox-x-${{ env.timestamp }}_nightly_AppImage
           path: ${{ github.workspace }}/appimage-package/
+
+      - name: Prepare snap image
+        run: |
+          top="${{ github.workspace }}"
+          cd "$top"
+          sudo snap install snapcraft --classic
+          cp -a contrib/linux/snap .
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@8c6a87bfb56aa48f3fb9b830baa18562d8bfd4ee
+
+      - name: Build Snap
+        run: snapcraft pack
+
+      - name: Upload Snap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dosbox-x-${{ github.env.timestamp }}-nightly_snap
+          path: '*.snap'
+          
