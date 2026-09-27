@@ -286,7 +286,7 @@ retry:
     sdl.surface = NULL;
     sdl.window = GFX_SetSDLWindowMode(windowWidth, windowHeight, (sdl_flags & SDL_WINDOW_OPENGL) ? SCREEN_OPENGL : SCREEN_SURFACE);
     if (sdl.window != NULL) sdl.surface = SDL_GetWindowSurface(sdl.window);
-#elif defined(SDL_DOSBOX_X_SPECIAL)
+    #elif defined(SDL_DOSBOX_X_SPECIAL)
     sdl.surface = SDL_SetVideoMode(windowWidth, windowHeight, (int)bpp, (unsigned int)sdl_flags | (unsigned int)(setSizeButNotResize() ? SDL_HAX_NORESIZEWINDOW : 0));
 #else
     sdl.surface = SDL_SetVideoMode(windowWidth, windowHeight, (int)bpp, (unsigned int)sdl_flags);
@@ -324,7 +324,6 @@ retry:
     mainMenu.updateRect();
     mainMenu.setRedraw();
 #endif
-
     return sdl.surface;
 }
 

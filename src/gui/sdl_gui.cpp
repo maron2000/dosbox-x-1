@@ -331,6 +331,9 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     bool fs;
     GFX_GetSizeAndPos(sx, sy, sw, sh, fs);
 
+    LOG_MSG("UI_Startup: sx=%d sy=%d sw=%d sh=%d fs=%d",
+        sx, sy, sw, sh, fs);
+
     int dw,dh;
 #if defined(C_SDL2)
     {
@@ -339,6 +342,7 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
         SDL_Window* GFX_GetSDLWindow(void);
         SDL_Window *w = GFX_GetSDLWindow();
         SDL_GetWindowSize(w,&dw,&dh);
+        LOG_MSG("UI_Startup: SDL window dw=%d dh=%d", dw, dh);
     }
 #elif defined(C_HX_DOS)
     /* FIXME: HX DOS builds are not updating the window dimensions vars.. */
@@ -364,6 +368,9 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     else                  scale = scalex;
     if (!toscale) scale = 1;
 
+    LOG_MSG("UI_Startup: scalex=%d scaley=%d scale=%d toscale=%d",
+        scalex, scaley, scale, toscale);
+
     assert(sx < dw);
     assert(sy < dh);
 
@@ -382,7 +389,7 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     old_unicode = SDL_EnableUNICODE(1);
     SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,SDL_DEFAULT_REPEAT_INTERVAL);
 #endif
-
+    LOG_MSG("UI_Startup: sw_draw=%d, sh_draw=%d", sw_draw, sh_draw);
     if (sw_draw > 0 && sh_draw > 0) {
         screenshot = SDL_CreateRGBSurface(SDL_SWSURFACE, dw, dh, 32, GUI::Color::RedMask, GUI::Color::GreenMask, GUI::Color::BlueMask, 0);
         SDL_FillRect(screenshot, nullptr, 0);
@@ -469,19 +476,97 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
     SDL_Surface* sdlscreen = SDL_GetWindowSurface(window);
     if (sdlscreen == NULL) E_Exit("Could not initialize video mode for mapper: %s",SDL_GetError());
 
+    LOG_MSG("mapper: window=%p surface=%p flags=0x%x",
+            (void *)window,
+            (void *)sdlscreen,
+            window ? SDL_GetWindowFlags(window) : 0);
+    LOG_MSG("mapper: window=%dx%d surface=%dx%d pitch=%d",
+        dw, dh, sdlscreen->w, sdlscreen->h, sdlscreen->pitch);
     if (screenshot != NULL && background != NULL) {
         // fade out
         // Jonathan C: do it FASTER!
+        LOG_MSG("mapper: background=%dx%d bpp=%d",
+            background->w,
+            background->h,
+            background->format->BitsPerPixel);
+
+        LOG_MSG("mapper: screenshot=%dx%d bpp=%d",
+            screenshot->w,
+            screenshot->h,
+            screenshot->format->BitsPerPixel);
+        LOG_MSG("mapper: screen=%dx%d bpp=%d pitch=%d",
+            sdlscreen->w,
+            sdlscreen->h,
+            sdlscreen->format->BitsPerPixel,
+            sdlscreen->pitch);
+            
         SDL_Event event;
         SDL_SetSurfaceBlendMode(screenshot, SDL_BLENDMODE_BLEND);
         for (int i = 0xff; i > 0; i -= 0x40) {
-            SDL_SetSurfaceAlphaMod(screenshot, i); 
-            SDL_BlitSurface(background, NULL, sdlscreen, NULL); 
-            SDL_BlitSurface(screenshot, NULL, sdlscreen, NULL);
+            if (i == 0xff) {
+                const int x = sdlscreen->w / 2;
+                const int y = sdlscreen->h / 2;
+
+                Uint32 pixel = 0;
+                SDL_memcpy(&pixel,
+                        static_cast<Uint8 *>(sdlscreen->pixels) +
+                            y * sdlscreen->pitch +
+                            x * sdlscreen->format->BytesPerPixel,
+                        sizeof(pixel));
+
+                Uint8 r, g, b;
+                SDL_GetRGB(pixel, sdlscreen->format, &r, &g, &b);
+
+                LOG_MSG("mapper: center pixel=%u,%u,%u",
+                        r, g, b);
+            }
+#if 1
+            int window_x = 0, window_y = 0;
+            SDL_GetWindowPosition(window, &window_x, &window_y);
+
+            void change_output(int);
+            change_output(0);
+            change_output(3);
             SDL_Window* GFX_GetSDLWindow(void);
-            SDL_UpdateWindowSurface(GFX_GetSDLWindow());
+            window = GFX_GetSDLWindow();
+            SDL_UpdateWindowSurface(window);
+            SDL_SetWindowPosition(window, window_x, window_y);
+            SDL_SetSurfaceAlphaMod(screenshot, i); 
+            
+            sdlscreen = SDL_GetWindowSurface(window);
+            if (sdlscreen == NULL)
+                E_Exit("Could not get window surface for mapper: %s",
+                    SDL_GetError());
+            SDL_ClearError();
+            int ret = SDL_BlitSurface(background, NULL, sdlscreen, NULL);
+            //LOG_MSG("mapper: background blit=%d error=%s",
+            //        ret, SDL_GetError());
+
+            SDL_ClearError();
+            ret = SDL_BlitSurface(screenshot, NULL, sdlscreen, NULL);
+            //LOG_MSG("mapper: screenshot blit=%d error=%s",
+            //        ret, SDL_GetError());
+            
+            SDL_ClearError();
+            ret = SDL_UpdateWindowSurface(window);
+            //LOG_MSG("mapper: UpdateWindowSurface=%d error=%s",
+            //        ret, SDL_GetError());
+            //SDL_Window* GFX_GetSDLWindow(void);
+            //SDL_UpdateWindowSurface(GFX_GetSDLWindow());
+            SDL_ClearError();
+            //if (SDL_UpdateWindowSurface(window) != 0)
+            //    LOG_MSG("SDL_UpdateWindowSurface: %s", SDL_GetError());
             while (SDL_PollEvent(&event)); 
             SDL_Delay(40); 
+#else
+            SDL_FillRect(sdlscreen, NULL,
+                        SDL_MapRGB(sdlscreen->format, 255, 0, 0));
+
+            if (SDL_UpdateWindowSurface(window) != 0)
+                LOG_MSG("SDL_UpdateWindowSurface: %s", SDL_GetError());
+
+            SDL_Delay(3000);
+#endif
         } 
         SDL_SetSurfaceBlendMode(screenshot, SDL_BLENDMODE_NONE);
     }
@@ -503,12 +588,12 @@ static GUI::ScreenSDL *UI_Startup(GUI::ScreenSDL *screen) {
         }
     }
 #endif
- 
     if (screenshot != NULL && background != NULL)
         SDL_BlitSurface(background, NULL, sdlscreen, NULL);
 #if defined(C_SDL2)
-    SDL_Window* GFX_GetSDLWindow(void);
-    SDL_UpdateWindowSurface(GFX_GetSDLWindow());
+    //SDL_Window* GFX_GetSDLWindow(void);
+    //SDL_UpdateWindowSurface(GFX_GetSDLWindow());
+    SDL_UpdateWindowSurface(window);
 #else   
     SDL_UpdateRect(sdlscreen, 0, 0, 0, 0);
 #endif
