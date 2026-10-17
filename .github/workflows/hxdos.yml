@@ -126,7 +126,7 @@ jobs:
           tag: ${{ steps.decide.outputs.tag }}
           filename: "dosbox-x-vsbuild-win32-*.zip"
       - name: Run in Windows build
-        if: false
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         shell: bash
         run: |
           top=`pwd`
